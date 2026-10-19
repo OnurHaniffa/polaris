@@ -48,15 +48,15 @@ Read Part 0 every time you sit down to work. Read Parts 1–3 once, carefully, b
 
 > Update this block at the end of every sprint review. It is the first thing a teammate reads.
 
-**Current sprint:** Sprint 0 (16 – 18 Oct): setup
-**Last updated:** 16 Oct 2026
+**Current sprint:** Sprint 0 (16 – 18 Oct, running late; finishing 19–20 Oct): setup
+**Last updated:** 19 Oct 2026
 
 | Area | Status |
 |---|---|
 | Spec | ✅ v1.1 written (code map + build guide), awaiting team review |
 | TA confirmation of 3-person team | ⏳ not yet asked |
-| GitHub repo | ✅ created 16 Oct, public, `develop` default, Fatmaaa-Demir and ZeynepUygun05 invited |
-| Branch protection | ⏳ (S0-01, after the skeleton lands) |
+| GitHub repo | ✅ created 16 Oct, public, `develop` default; Fatmaaa-Demir and ZeynepUygun05 accepted their invites |
+| Branch protection | ✅ S0-01 done 19 Oct: `main` and `develop` need a PR + 1 approval; squash and merge-commit only; branches deleted on merge. Required CI checks get added in S0-05. Teammates still need to verify their git email (S0-01 step 1) |
 | Backlog in GitHub Projects | ⏳ |
 | Django skeleton + Docker + CI | ⏳ |
 | Staging deployment | ⏳ (Sprint 2) |
