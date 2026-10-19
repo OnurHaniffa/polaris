@@ -52,9 +52,9 @@ The code below calls functions written in Sprints 1–6. The names come from spe
 |---|---|---|
 | S1-07 | `scoring.loaders.load_student_inputs(student, *, include_open_terms=True, up_to_term=None)` | `up_to_term` is a `Term`: only offerings whose `term.starts_on <= up_to_term.starts_on` are loaded. P4, P9, P10 and P13 are already applied |
 | S1-08 | `core.tests.factories.*`, `core.tests.scenarios.elif_scenario()` | Factories accept every model field as a keyword. `elif_scenario()` returns a namespace with `offering, student, midterm, project, lo1, lo2, po1, po2` |
-| S1-09 | `templates/base.html` | Has `{% block content %}`, `{% block scripts %}`, and one shared Bootstrap modal `<div class="modal fade" id="pl-modal"><div class="modal-dialog modal-lg"><div class="modal-content" id="pl-modal-content">…` that HTMX fills. Loads `vendor/chart.umd.min.js` and `js/polaris.js` |
+| S1-09 | `templates/base.html` | Has `{% block content %}`, `{% block scripts %}`, and one shared Bootstrap modal `#modal` whose `#modal-content` HTMX fills. Loads `vendor/chart.umd.min.js` (in `{% block chart_js %}`) and `js/polaris.js` |
 | S1-09 | `includes/empty_state.html` | Takes `title` and `message` |
-| S2-02 | permission matrix test | A module-level list `CASES` of `(url_name, kwargs_factory, expected)` tuples. `expected` maps role (`"anon"`, `"student"`, `"other_instructor"`, `"instructor"`, `"head"`, `"admin"`) to a status code |
+| S2-02 | permission matrix | `ROUTES` in `apps/accounts/tests/routes.py`: one `Route(name, expect, kwargs=…, method=…, story=…)` per URL, with presets `OFFERING_STAFF`, `HEAD`, `EXPORT_OWNER`… Rows for every §4.8 URL already exist and switch on when the URL resolves |
 | S2-05 | `outcomes.selectors.mapping_grid(offering) -> MappingGrid` | `.assessments`, `.los`, `.pos` (lists of model objects); `.a_lo: dict[(assessment_id, lo_id), Decimal]`; `.lo_po: dict[(lo_id, po_id), int]` |
 | S2-06 | `grading/sheet.html` | Has a `{% partialdef cell %}` that renders one `<td>` per grade cell with `assessment` and `enrollment` in context |
 | B11 | `outcomes.lint.run_lint`, `outcomes.selectors.snapshot_mapping` | `LintIssue(code, severity, message, target)` |
@@ -544,7 +544,7 @@ The head narrows the dashboard to a term range and a cohort, and switches "close
 | Path | Create / modify | What |
 |---|---|---|
 | `apps/reports/filters.py` | create | `DashboardFilters`, `DashboardFilterForm` |
-| `apps/reports/selectors.py` | modify | `program_for_head()`, `completion_term()`, `CompletionRow`, `completion_rows()`, full `department_context()` |
+| `apps/reports/selectors.py` | modify | `completion_term()`, `CompletionRow`, `completion_rows()`, full `department_context()` |
 | `apps/reports/views.py` | modify | full `department()` view |
 | `apps/reports/templates/reports/department.html` | modify | full page: filter form, `dashboard_body`, `completion` partials |
 | `apps/core/templatetags/polaris.py` | modify | `query_transform` (if S1-09 didn't already add it) |
@@ -679,26 +679,10 @@ from decimal import Decimal
 
 from django.db.models import Count, Exists, IntegerField, OuterRef, Subquery, Value
 from django.db.models.functions import Coalesce
-from django.http import Http404
 
-from apps.accounts.models import ProgramMembership
-from apps.catalog.models import CourseOffering, Enrollment, Program, Term
+from apps.catalog.models import CourseOffering, Enrollment, Term
 from apps.outcomes.models import Assessment, AssessmentLOWeight, LearningOutcome, LOPOWeight
 from apps.scoring.aggregates import attainment_matrix, coverage_matrix, program_po_summary
-
-
-def program_for_head(user) -> Program:
-    """The program whose dashboard this user sees. One program per head until T2.6 adds a switcher."""
-    membership = (ProgramMembership.objects.select_related("program")
-                  .filter(user=user, role=ProgramMembership.Role.HEAD)
-                  .order_by("program__code").first())
-    if membership is not None:
-        return membership.program
-    if user.is_superuser:
-        program = Program.objects.order_by("code").first()
-        if program is not None:
-            return program
-    raise Http404
 
 
 def completion_term() -> Term | None:
@@ -799,13 +783,15 @@ from django.shortcuts import render
 from apps.accounts.decorators import require_role
 
 from .filters import DashboardFilterForm
-from .selectors import department_context, program_for_head
+from apps.accounts.permissions import head_program_or_404
+
+from .selectors import department_context
 
 
 @login_required
 @require_role("head")
 def department(request):
-    program = program_for_head(request.user)
+    program = head_program_or_404(request.user)
     form = DashboardFilterForm(request.GET, program=program)
     filters = form.filters()
     context = department_context(
@@ -1757,7 +1743,9 @@ from apps.accounts.decorators import require_offering_access, require_role
 
 from .filters import DashboardFilterForm
 from .models import ExportJob
-from .selectors import export_for_user, program_for_head
+from apps.accounts.permissions import head_program_or_404
+
+from .selectors import export_for_user
 from .services import request_export
 
 
@@ -1784,7 +1772,7 @@ def course_export(request, fmt, *, offering, perms_for, **_):
 def department_export(request, fmt):
     if fmt not in ExportJob.Format.values:
         raise Http404
-    program = program_for_head(request.user)
+    program = head_program_or_404(request.user)
     filters = DashboardFilterForm(request.POST, program=program).filters()
     job = request_export(request.user, kind=ExportJob.Kind.DEPARTMENT, fmt=fmt, program=program,
                          params=filters.to_params())
@@ -2044,19 +2032,7 @@ td.empty { color: #999; text-align: center; }
 </html>
 ```
 
-**8. Permission matrix.** Add three rows to `CASES` in `apps/accounts/tests/test_permission_matrix.py`. The matrix test sends GETs, so a POST-only view that lets you through answers **405**. One that doesn't let you through answers **404** first, because the access decorator runs before `require_POST`.
-
-```python
-    ("reports:course_export", lambda s: {"offering_id": s.offering.pk, "fmt": "pdf"},
-     {"anon": 302, "student": 404, "other_instructor": 404, "instructor": 405, "head": 405, "admin": 405}),
-    ("reports:department_export", lambda s: {"fmt": "pdf"},
-     {"anon": 302, "student": 404, "other_instructor": 404, "instructor": 404, "head": 405, "admin": 405}),
-    # export_status: an export that belongs to nobody in the matrix, so everyone logged in gets 404
-    ("reports:export_status", lambda s: {"export_id": s.foreign_export.pk},
-     {"anon": 302, "student": 404, "other_instructor": 404, "instructor": 404, "head": 404, "admin": 404}),
-```
-
-Add `foreign_export` to the matrix scenario: `ExportJob.objects.create(kind="course", fmt="pdf", offering=s.offering, created_by=UserFactory())`.
+**8. Permission matrix.** `reports:course_export`, `reports:department_export` and `reports:export_status` already have rows in `ROUTES` (`apps/accounts/tests/routes.py`, S2-02, `story="S7-03"`). They switch on once the URLs exist. Check that the matrix world's `export_job()` creates an export owned by the world's *instructor*, which is what the `EXPORT_OWNER` preset expects (only the creator gets 200; everyone else 404). Nothing else to add.
 
 ### Tests
 
@@ -3549,7 +3525,7 @@ def offering_history(request, *, offering, perms_for, **_):
 @login_required
 @require_role("head")
 def department_history(request):
-    program = program_for_head(request.user)
+    program = head_program_or_404(request.user)
     return _history_response(request, {"offering": None, "title": f"History · {program.code} department"},
                              {"program": program})
 ```
@@ -3653,7 +3629,7 @@ def cell_history(request, assessment_id, enrollment_id, *, offering, perms_for, 
 `hx-get=""` means "this page's URL". HTMX adds the form fields as query parameters, so the filters land in the URL (`hx-push-url`). Changing a filter starts again at page 1, because the form doesn't carry `page`.
 
 ```django
-{# apps/grading/templates/grading/cell_history.html : rendered into the shared modal (#pl-modal-content) #}
+{# apps/grading/templates/grading/cell_history.html : rendered into the shared modal (#modal-content) #}
 <div class="modal-header">
   <h2 class="modal-title h5">History · {{ enrollment.student.get_full_name }} · {{ assessment.name }}</h2>
   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -3692,24 +3668,14 @@ document.addEventListener("contextmenu", (event) => {
   const cell = event.target.closest("[data-history-url]");
   if (!cell || !window.htmx) return;
   event.preventDefault();
-  htmx.ajax("GET", cell.dataset.historyUrl, { target: "#pl-modal-content", swap: "innerHTML" })
-    .then(() => bootstrap.Modal.getOrCreateInstance(document.getElementById("pl-modal")).show());
+  htmx.ajax("GET", cell.dataset.historyUrl, { target: "#modal-content", swap: "innerHTML" })
+    .then(() => bootstrap.Modal.getOrCreateInstance(document.getElementById("modal")).show());
 });
 ```
 
 The keyboard's context-menu key and Shift+F10 fire the same `contextmenu` event on the focused input. Keyboard users therefore get the history too (S7-07 checks this).
 
-**7. Permission matrix rows** (`apps/accounts/tests/test_permission_matrix.py`, added to `CASES`):
-
-```python
-    ("reports:history", lambda s: {"offering_id": s.offering.pk},
-     {"anon": 302, "student": 404, "other_instructor": 404, "instructor": 200, "head": 200, "admin": 200}),
-    ("reports:department_history", lambda s: {},
-     {"anon": 302, "student": 404, "other_instructor": 404, "instructor": 404, "head": 200, "admin": 200}),
-    ("grading:cell_history", lambda s: {"offering_id": s.offering.pk, "assessment_id": s.assessment.pk,
-                                        "enrollment_id": s.enrollment.pk},
-     {"anon": 302, "student": 404, "other_instructor": 404, "instructor": 200, "head": 200, "admin": 200}),
-```
+**7. Permission matrix.** `reports:history`, `reports:department_history` and `grading:cell_history` already have rows in `ROUTES` (S2-02, `story="S7-05"`): `OFFERING_STAFF`, `HEAD` and `OFFERING_STAFF` (HTMX) respectively. They switch on once the URLs exist; nothing to add.
 
 ### Tests
 
@@ -4264,7 +4230,7 @@ Why these numbers:
 
 **1. Fixes in `templates/base.html`.**
 
-Check each of these. Most were done in S1-09; add whatever is missing.
+Check each of these. Most were done in S1-09; add whatever is missing. **Don't paste this over the file.** It shows only the skeleton S7-07 checks. Keep everything else S1-09 and S2-01 put there: the theme script in `<head>`, `{% block head %}`, `{% block breadcrumbs %}`, and the shared `#modal`. The one real change is the `chart_js` block: its default becomes **empty** (S1-09 loaded Chart.js there on every page), and pages with charts fill it.
 
 ```django
 <!doctype html>
@@ -4286,8 +4252,8 @@ Check each of these. Most were done in S1-09; add whatever is missing.
   <div class="toast-container position-fixed bottom-0 end-0 p-3" aria-live="polite" aria-atomic="true">
     {% for message in messages %}{% include "includes/toast.html" with message=message only %}{% endfor %}
   </div>
-  <div class="modal fade" id="pl-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content" id="pl-modal-content"></div></div>
+  <div class="modal fade" id="modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content" id="modal-content"></div></div>
   </div>
   <script src="{% static 'vendor/bootstrap.bundle.min.js' %}" defer></script>
   <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
@@ -4592,7 +4558,6 @@ New public names introduced in this chapter. Copy them into spec §4.8 when the 
 | `apps/scoring/engine.py` | `evidence_offerings` | `(profile) -> dict[po_id, set[offering_id]]` | Offerings that actually fed each PO |
 | `apps/scoring/engine.py` | `contribution_by_offering` | `(profile) -> dict[po_id, dict[offering_id, Decimal]]` | Per-course share of a PO score; shares add up to the score |
 | `apps/reports/filters.py` | `DashboardFilters`, `DashboardFilterForm` | `DashboardFilters.from_params(program, params)`, `.to_params()`, `.label`, `.terms`; `DashboardFilterForm(data, *, program).filters()` | Dashboard and department-export filters |
-| `apps/reports/selectors.py` | `program_for_head` | `(user) -> Program` (404 if none) | Which program's dashboard a head sees until T2.6 |
 | `apps/reports/selectors.py` | `completion_term`, `CompletionRow`, `completion_rows` | `() -> Term \| None`; `(program, term) -> list[CompletionRow]` | Completion panel in one query |
 | `apps/reports/selectors.py` | `PORow`, `CourseRow`, `Trend`, `student_trend` | `student_trend(student, pos) -> Trend` | Profile v2 rows and cumulative trend |
 | `apps/reports/selectors.py` | `export_for_user` | `(user, export_id) -> ExportJob` (404 unless creator) | Export ownership |

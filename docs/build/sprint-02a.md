@@ -1923,6 +1923,8 @@ class BootstrapFormMixin:
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             widget = field.widget
+            if isinstance(widget, forms.HiddenInput):
+                continue
             if isinstance(widget, _CHECK_WIDGETS):
                 css = "form-check-input"
             elif isinstance(widget, forms.Select | forms.SelectMultiple):
@@ -3302,7 +3304,7 @@ Drop has no confirmation dialog. It is undoable: add the same student again and 
         <a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:po_edit' po_id=po.pk %}">Edit</a>
         {% if po.links == 0 %}
           <a class="btn btn-sm btn-outline-danger" href="{% url 'catalog:po_delete' po_id=po.pk %}"
-             hx-get="{% url 'catalog:po_delete' po_id=po.pk %}" hx-target="#modal .modal-content"
+             hx-get="{% url 'catalog:po_delete' po_id=po.pk %}" hx-target="#modal-content"
              data-bs-toggle="modal" data-bs-target="#modal">Delete</a>
         {% endif %}
       </td>
@@ -3324,13 +3326,7 @@ Drop has no confirmation dialog. It is undoable: add the same student again and 
 {% endblock %}
 ```
 
-The delete link is a normal link (a full confirmation page) and also an HTMX trigger that loads the same page's `confirm` partial into a modal. Without JavaScript you get the page; with it, the modal. This needs one modal container in `base.html`. Add it once if S1-09 didn't, just before `</body>`. S2-04's LO and assessment deletes reuse it.
-
-```django
-<div class="modal fade" id="modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered"><div class="modal-content"></div></div>
-</div>
-```
+The delete link is a normal link (a full confirmation page) and also an HTMX trigger that loads the same page's `confirm` partial into a modal. Without JavaScript you get the page; with it, the modal. It uses the one shared modal that S1-09 put in `base.html` (`#modal`, with HTMX filling `#modal-content`). S2-04's LO and assessment deletes reuse it.
 
 ```django
 {# apps/catalog/templates/catalog/po_delete.html #}
@@ -4129,6 +4125,6 @@ Names this chapter introduces that are not in spec §4.8. They go into §4.8 whe
 | `templates/includes/` | `navbar.html`, `offering_header.html`, `form_fields.html` | — | shared partials |
 | `templates/403.html` | — | — | closed-term page |
 | `catalog` templates | `department_base.html` | — | sub-navigation for `/department/` pages |
-| `base.html` | `#modal` container | — | one Bootstrap modal that HTMX fills (§8.5 "Modal content") |
+| `base.html` (S1-09) | `#modal` / `#modal-content` | — | one Bootstrap modal that HTMX fills (§8.5 "Modal content") |
 | `apps/reports/urls_student.py` | `student:` namespace | — | included at `me/` by S3-02 |
 | `config/settings/base.py` | `LOGIN_URL = "accounts:login"`, `LOGOUT_REDIRECT_URL`, `PASSWORD_RESET_TIMEOUT` | — | §10.3 has `LOGIN_URL = "login"`, which breaks with the namespace |

@@ -7,11 +7,11 @@ These stories sit on top of Sprints 1 and 2. They use the following, exactly as 
 
 | Thing | Where it comes from | What this file assumes |
 |---|---|---|
-| `templates/base.html` | S1-09 | Blocks `title`, `content` and `scripts`. `static/js/polaris.js` and the vendored Chart.js (`vendor/chart.umd.js`) are loaded on every page, before `{% block scripts %}` |
-| `includes/score_badge.html` | S1-09 | Context `score` (Decimal or None) and `threshold`. Prints `score|score` with a ✓ or ✗ icon |
+| `templates/base.html` | S1-09 | Blocks `title`, `content`, `chart_js` and `scripts`. `static/js/polaris.js` and the vendored Chart.js (`vendor/chart.umd.min.js`, in the `chart_js` block) load on every page before `{% block scripts %}` until S7-07 makes Chart.js opt-in |
+| `includes/score_badge.html` | S1-09 | Context `value` (Decimal or None) and `threshold`. Prints `value|score` with a ✓ or ↓ icon |
 | `includes/coverage_bar.html` | S1-09 | Context `coverage` (Decimal 0..1). A thin progress bar with the percentage as text |
-| `includes/empty_state.html` | S1-09 | Context `title`, `message` and an optional `action_url` / `action_label` |
-| `includes/setup_checklist.html` | S2-04 | Context `status` (a `SetupStatus`) |
+| `includes/empty_state.html` | S1-09 | Context `title` (required), `message` and an optional `action_url` / `action_label` |
+| `includes/setup_checklist.html` | S2-04 | Context `status` (a `SetupStatus`), `offering`, `can_manage_enrollment` (bool) |
 | `|score`, `|pct`, `|weight` filters | S1-09 (`core/templatetags/polaris.py`) | Loaded with `{% load polaris %}` |
 | `require_role(*roles)` | S2-02 | Denies anyone without one of the roles, with the status S2-02 standardised (404) |
 | `require_offering_access(edit=False)` | S2-02 | Passes `offering=` and `perms_for=` into the view as keyword arguments. The URL's `offering_id` is passed through too |
@@ -21,7 +21,7 @@ These stories sit on top of Sprints 1 and 2. They use the following, exactly as 
 | `catalog.selectors.setup_status(offering)` | S2-04 | Returns the `SetupStatus` dataclass from §4.8 |
 | `catalog.services.ensure_term_open(offering)` | S2-03 | Raises `ValidationError("Fall 2025 is closed. Nothing in it can change.")` |
 
-Every new URL in this file is also added to the permission matrix test (S2-02). The rows to add are listed in each story's **Done when** section.
+Every §4.8 URL in this file already has a row in `ROUTES` (`apps/accounts/tests/routes.py`, S2-02); it switches on when the URL exists. A URL that is **not** in §4.8 gets a new `Route(...)` line in that list, shown where it's introduced. Each story's **Done when** lists the results to check.
 
 ---
 
@@ -493,7 +493,7 @@ In `config/urls.py`, add the two includes next to the others:
                    title="{{ row.po.description }}">{{ row.po.short_name }}</a>
               </td>
               <td class="text-end">
-                {% include "includes/score_badge.html" with score=row.score threshold=threshold only %}
+                {% include "includes/score_badge.html" with value=row.score threshold=threshold only %}
               </td>
               <td>
                 {% if row.score is None %}
@@ -583,7 +583,7 @@ The "share" column answers the real question: "how much of PO 3 is CSE 211?" Sha
 <div class="pl-po-detail">
   <h3 class="h5">PO {{ po.number }} · {{ po.short_name }}</h3>
   <p class="small text-body-secondary">{{ po.description }}</p>
-  <p class="fs-4 mb-1">{% include "includes/score_badge.html" with score=score threshold=threshold only %}</p>
+  <p class="fs-4 mb-1">{% include "includes/score_badge.html" with value=score threshold=threshold only %}</p>
   {% if score is not None %}
     {% include "includes/coverage_bar.html" with coverage=coverage only %}
   {% endif %}
@@ -976,7 +976,14 @@ def test_profile_query_count_is_bounded(client, django_assert_max_num_queries):
 | Chart and table agree | `test_chart_uses_the_same_rounded_numbers_as_the_table` |
 | Head sees own program's students only | `test_head_sees_student_of_own_program_only` |
 
-Permission matrix rows to add (✓ = 200, ✗ = denied with 404):
+Permission matrix. The first four rows already exist in `ROUTES`. Add one line for the new URL:
+
+```python
+    Route("reports:department_student_po", HEAD,
+          kwargs=lambda w: {"user_id": w.users["student"].pk, "po_id": w.po.pk}, story="S3-02"),
+```
+
+Expected results (✓ = 200, ✗ = denied with 404):
 
 | URL name | student (self) | student (other) | instructor | head (same program) | head (other program) | anonymous |
 |---|---|---|---|---|---|---|
@@ -1293,7 +1300,7 @@ def course_results(request, offering_id, *, offering, perms_for):
   {% if in_progress %}The term is still open, so these numbers will change.{% endif %}</p>
 
 {% if not status.is_complete %}
-  {% include "includes/setup_checklist.html" with status=status only %}
+  {% include "includes/setup_checklist.html" with status=status offering=offering can_manage_enrollment=False only %}
 {% endif %}
 
 {% if not summary.los %}
@@ -1359,7 +1366,7 @@ def course_results(request, offering_id, *, offering, perms_for):
       {% for c in summary.po_contribution %}
         <li class="list-group-item d-flex justify-content-between">
           <span>PO {{ c.number }} <span class="small text-body-secondary">{{ c.short_name }}</span></span>
-          <span>{% include "includes/score_badge.html" with score=c.mean threshold=threshold only %}</span>
+          <span>{% include "includes/score_badge.html" with value=c.mean threshold=threshold only %}</span>
         </li>
       {% empty %}
         <li class="list-group-item text-body-secondary">No LO is linked to a PO yet. <a href="{% url 'outcomes:mapping' offering.id %}">Open the mapping</a>.</li>
@@ -1839,7 +1846,7 @@ def department(request):
         <tr>
           <td class="fw-semibold">{{ s.po.number }}</td>
           <td title="{{ s.po.description }}">{{ s.po.short_name }}</td>
-          <td class="text-end">{% include "includes/score_badge.html" with score=s.mean threshold=threshold only %}</td>
+          <td class="text-end">{% include "includes/score_badge.html" with value=s.mean threshold=threshold only %}</td>
           <td class="text-end">{{ s.n_evidence }}</td>
           <td>
             {% if s.rate is None %}
@@ -3066,7 +3073,7 @@ In `test_reports_every_kind_of_row_error`, line 3 (the first `2024-0002`) is val
 | Audit + set-password email | `test_confirm_creates_accounts_enrolls_audits_and_emails` |
 | No double import, no stale preview | `test_second_confirm_is_refused`, `test_confirm_refuses_when_data_changed_since_preview` |
 
-Matrix rows: `catalog:enrollment_import`, `catalog:enrollment_import_preview`, `catalog:enrollment_import_confirm` (POST): head ✓ (the preview and confirm rows use a job in the head's program), instructor ✗ 404, student ✗ 404, anonymous 302.
+Matrix rows (already in `ROUTES` since S2-02): `catalog:enrollment_import`, `catalog:enrollment_import_preview`, `catalog:enrollment_import_confirm` (POST): head ✓ (the preview and confirm rows use a job in the head's program), instructor ✗ 404, student ✗ 404, anonymous 302.
 
 ### Commits and PR
 

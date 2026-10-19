@@ -12,7 +12,7 @@ An instructor opens their course, sees a checklist of what's still missing, and 
 
 | Path | Create / modify | What goes in it |
 |---|---|---|
-| `apps/outcomes/forms.py` | create | `BootstrapMixin`, `LearningOutcomeForm`, `AssessmentForm` |
+| `apps/outcomes/forms.py` | create | `LearningOutcomeForm`, `AssessmentForm` (using `core.forms.BootstrapFormMixin` from S2-03) |
 | `apps/outcomes/services.py` | create | `create_lo`, `update_lo`, `delete_lo`, `reorder_los`, `create_assessment`, `update_assessment`, `delete_assessment` (S2-05 adds the matrix functions) |
 | `apps/outcomes/selectors.py` | create | `setup_context`, `DeletionImpact`, `lo_deletion_impact`, `assessment_deletion_impact` (S2-05 and S2-07 add more) |
 | `apps/catalog/selectors.py` | modify | `SetupStatus`, `setup_statuses`, `setup_status` |
@@ -34,7 +34,7 @@ The permission matrix rows for every URL in this story are already in `apps/acco
 
 ### Steps
 
-**1. Forms.** Plain `forms.Form`, not `ModelForm`. A `ModelForm` has a `.save()` method, and sooner or later someone calls it from a view and skips the service: no transaction, no audit event, no closed-term check. Plain forms only clean input, and the service does the write. `BootstrapMixin` adds Bootstrap's CSS classes once, so templates can print `{{ field }}` without per-field markup.
+**1. Forms.** Plain `forms.Form`, not `ModelForm`. A `ModelForm` has a `.save()` method, and sooner or later someone calls it from a view and skips the service: no transaction, no audit event, no closed-term check. Plain forms only clean input, and the service does the write. `BootstrapFormMixin` (S2-03, `apps/core/forms.py`) adds Bootstrap's CSS classes once, so templates can print `{{ field }}` without per-field markup.
 
 `confirm_max_change` is the "yes, I really want to change the maximum" box. It is only shown after the service has refused a max-score change once (step 3).
 
@@ -46,28 +46,12 @@ from decimal import Decimal
 
 from django import forms
 
+from apps.core.forms import BootstrapFormMixin
+
 from .models import Assessment
 
 
-class BootstrapMixin:
-    """Give every widget the right Bootstrap class, once, for all forms in this app."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            widget = field.widget
-            if isinstance(widget, forms.HiddenInput):
-                continue
-            if isinstance(widget, forms.CheckboxInput):
-                css = "form-check-input"
-            elif isinstance(widget, forms.Select):
-                css = "form-select"
-            else:
-                css = "form-control"
-            widget.attrs["class"] = f"{widget.attrs.get('class', '')} {css}".strip()
-
-
-class LearningOutcomeForm(BootstrapMixin, forms.Form):
+class LearningOutcomeForm(BootstrapFormMixin, forms.Form):
     description = forms.CharField(
         max_length=2000,
         widget=forms.Textarea(attrs={"rows": 3}),
@@ -82,7 +66,7 @@ class LearningOutcomeForm(BootstrapMixin, forms.Form):
         return text
 
 
-class AssessmentForm(BootstrapMixin, forms.Form):
+class AssessmentForm(BootstrapFormMixin, forms.Form):
     name = forms.CharField(max_length=100, help_text="As students know it, e.g. “Midterm I”.")
     kind = forms.ChoiceField(choices=Assessment.Kind.choices)
     max_score = forms.DecimalField(
@@ -742,7 +726,7 @@ urlpatterns = [
 
 **9. The setup page.** Two cards side by side on a laptop, stacked on a phone. Empty states say what an LO *is* and what to do first (*The Blank Slate*, Getting Real Ch. 9). Edit controls appear only when `perms_for.can_edit`. On a closed term the page is a clean read-only view, and the header from S2-02 shows the 🔒 badge.
 
-The delete buttons use the shared modal from `base.html` (S1-09: `#pl-modal` with `#pl-modal-content`). `hx-get` loads the confirmation body into it while Bootstrap opens it. Without JavaScript the same link opens the full-page confirmation, because it's a real `href`.
+The delete buttons use the shared modal from `base.html` (S1-09: `#modal`, HTMX fills `#modal-content`). `hx-get` loads the confirmation body into it while Bootstrap opens it. Without JavaScript the same link opens the full-page confirmation, because it's a real `href`.
 
 ```django
 {# apps/outcomes/templates/outcomes/setup.html #}
@@ -791,8 +775,8 @@ The delete buttons use the shared modal from `base.html` (S1-09: `#pl-modal` wit
                        href="{% url 'outcomes:lo_edit' offering_id=offering.pk lo_id=row.lo.pk %}">Edit</a>
                     {% url 'outcomes:lo_delete' offering_id=offering.pk lo_id=row.lo.pk as delete_url %}
                     <a class="btn btn-sm btn-outline-danger" aria-label="Delete LO {{ row.lo.number }}" href="{{ delete_url }}"
-                       hx-get="{{ delete_url }}" hx-target="#pl-modal-content"
-                       data-bs-toggle="modal" data-bs-target="#pl-modal">Delete</a>
+                       hx-get="{{ delete_url }}" hx-target="#modal-content"
+                       data-bs-toggle="modal" data-bs-target="#modal">Delete</a>
                   </div>
                 {% endif %}
               </li>
@@ -843,8 +827,8 @@ The delete buttons use the shared modal from `base.html` (S1-09: `#pl-modal` wit
                            href="{% url 'outcomes:assessment_edit' offering_id=offering.pk assessment_id=a.pk %}">Edit</a>
                         {% url 'outcomes:assessment_delete' offering_id=offering.pk assessment_id=a.pk as delete_url %}
                         <a class="btn btn-sm btn-outline-danger" aria-label="Delete {{ a.name }}" href="{{ delete_url }}"
-                           hx-get="{{ delete_url }}" hx-target="#pl-modal-content"
-                           data-bs-toggle="modal" data-bs-target="#pl-modal">Delete</a>
+                           hx-get="{{ delete_url }}" hx-target="#modal-content"
+                           data-bs-toggle="modal" data-bs-target="#modal">Delete</a>
                       </td>
                     {% endif %}
                   </tr>
@@ -1631,7 +1615,7 @@ class GridCell:
     value: str             # what the input shows ("" = no link)
     label: str             # accessible name, e.g. "Midterm I to LO 2"
     error: str = ""
-    origin: str = ""       # "", "document", "derived", "ai_suggested" (colour + text mark)
+    origin: str = ""       # "", "document", "derived", "ai_suggested" (colour + text mark); "manual" = plain
     rationale: str = ""    # one sentence, shown on hover for AI-suggested cells
 
 
@@ -2089,7 +2073,7 @@ Colour is never the only signal (spec §8.2). A coloured cell also shows a tiny 
 ```django
 {# templates/includes/weight_grid.html — params: grid (WeightGrid), editable (bool) #}
 {% partialdef cell %}
-<td class="pl-cell{% if cell.origin %} pl-cell--{{ cell.origin }}{% endif %}"{% if cell.rationale %} title="{{ cell.rationale }}"{% endif %}>
+<td class="pl-cell{% if cell.origin and cell.origin != 'manual' %} pl-cell--{{ cell.origin }}{% endif %}"{% if cell.rationale %} title="{{ cell.rationale }}"{% endif %}>
   <input type="text" name="{{ cell.name }}" value="{{ cell.value }}" autocomplete="off"
          inputmode="{% if grid.kind == 'lo_po' %}numeric{% else %}decimal{% endif %}"
          class="form-control form-control-sm text-center pl-cell__input{% if cell.error %} is-invalid{% endif %}"
@@ -2330,8 +2314,12 @@ A known small gap: after you edit an AI-suggested cell, the browser drops its vi
 
 ```css
 /* static/css/polaris.css — weight grids (S2-05) */
-:root { --pl-origin-document: #dbe7ff; --pl-origin-derived: #d5f2ee; --pl-origin-ai: #ece3ff; }
-[data-bs-theme="dark"] { --pl-origin-document: #1f3358; --pl-origin-derived: #183f3a; --pl-origin-ai: #36295a; }
+/* Cell backgrounds are light tints of the §8.2 semantic tokens (S1-09), so dark mode follows automatically */
+:root {
+  --pl-origin-document: color-mix(in srgb, var(--pl-document) 16%, transparent);
+  --pl-origin-derived: color-mix(in srgb, var(--pl-derived) 16%, transparent);
+  --pl-origin-ai: color-mix(in srgb, var(--pl-ai) 16%, transparent);
+}
 
 .pl-grid { width: auto; }
 .pl-grid__rowhead { max-width: 14rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
@@ -3377,11 +3365,10 @@ New names this chapter defines beyond spec §4.8. Add them to §4.8 in the same 
 | `outcomes.matrix` | `cell_name`, `parse_cell_name` | `(kind, row, col) -> str`, `(name) -> (kind, row, col) \| None` | `<kind>-<row>-<col>` input names |
 | `outcomes.matrix` | `fmt_weight` | `(value) -> str` | `60.00` → `60` |
 | `outcomes.matrix` | `version_of` | `(triples) -> str` | 16-hex-char grid version; `matrix_version` uses it |
-| `outcomes.matrix` | `GridCol`, `GridCell`, `GridRow`, `WeightGrid` | dataclasses (fields as in S6-02's step 1, plus `WeightGrid.footer_label`, `version`, `validate_url`, `empty_message`, `form_errors`) | What `includes/weight_grid.html` renders |
+| `outcomes.matrix` | `GridCol`, `GridCell`, `GridRow`, `WeightGrid` | dataclasses (owned here; S6-02 reuses them unchanged. `GridCell.origin` ∈ `""`, `document`, `derived`, `ai_suggested`, `manual`) | What `includes/weight_grid.html` renders |
 | `outcomes.matrix` | `column_totals`, `overlay_submitted` | `(grid) -> list[str]`, `(grid, cells, errors=None) -> grid` | Footer totals; re-show typed values after a refused save |
 | `outcomes.matrix` | `SOURCE_TO_ORIGIN` | dict | `LOPOWeight.source` → cell colour class |
 | `outcomes.lint` | `ERROR`, `WARNING`, `INFO`, `RULES`, `AssessmentInfo`, `LOInfo`, `LOPOLink`, `LintCounts`, `count_issues` | as in S2-07 step 1 | Snapshot shape and badge counts. `LOPOLink` has `lo_number`, `po_number`, `source` (what S6-04's L007 note assumes) |
-| `outcomes.forms` | `BootstrapMixin` | mixin | Bootstrap classes on every widget |
 | `catalog.selectors` | `SetupStatus.TOTAL`, `.done_count`; `setup_statuses` | `(offering_ids) -> dict[int, SetupStatus]` | Batched checklist (1 query) |
 | `core.templatetags.polaris` | `weight` filter | as §4.8 | Code given in S2-04 step 9 in case S1-09 didn't write it |
 | templates | `includes/weight_grid.html#cell` | partial | One grid cell. Rendered alone by `outcomes:validate_cell` |

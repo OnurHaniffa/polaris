@@ -4678,8 +4678,17 @@ rm -f .gitkeep && cd ../..
     {% endfor %}
   </div>
 
+  {# One shared modal. HTMX loads confirmation bodies into #modal-content (§8.5 "Modal content"). #}
+  <div class="modal fade" id="modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content" id="modal-content"></div>
+    </div>
+  </div>
+
   <script src="{% static 'vendor/bootstrap.bundle.min.js' %}"></script>
   <script src="{% static 'vendor/htmx.min.js' %}"></script>
+  {# Chart.js on every page for now. S7-07 makes it opt-in per page to speed up the rest. #}
+  {% block chart_js %}<script src="{% static 'vendor/chart.umd.min.js' %}"></script>{% endblock %}
   <script src="{% static 'js/polaris.js' %}"></script>
   {% block scripts %}{% endblock %}
 </body>
@@ -4761,10 +4770,10 @@ def query_transform(context, **changes):
 |---|---|
 | `includes/score_badge.html` | `value` (Decimal or None), `threshold` (Decimal or None: without it, a plain badge) |
 | `includes/coverage_bar.html` | `coverage` (0..1 Decimal or None) |
-| `includes/empty_state.html` | `title` (required), `text`, `action_url`, `action_label` (all optional; the button appears only with `action_url`) |
+| `includes/empty_state.html` | `title` (required), `message`, `action_url`, `action_label` (all optional; the button appears only with `action_url`) |
 | `includes/toast.html` | `message` (a Django message) |
 
-Example: `{% include "includes/empty_state.html" with title="No learning outcomes yet" text="Add your first LO, or upload your syllabus." action_url=url action_label="Add an LO" only %}`.
+Example: `{% include "includes/empty_state.html" with title="No learning outcomes yet" message="Add your first LO, or upload your syllabus." action_url=url action_label="Add an LO" only %}`.
 
 **`templates/includes/score_badge.html`**
 
@@ -4794,12 +4803,12 @@ Example: `{% include "includes/empty_state.html" with title="No learning outcome
 
 ```html
 {% comment %}
-  Usage: {% include "includes/empty_state.html" with title="No learning outcomes yet" text="Add your first LO, or upload your syllabus and we'll read them for you." action_url=url action_label="Add an LO" only %}
+  Usage: {% include "includes/empty_state.html" with title="No learning outcomes yet" message="Add your first LO, or upload your syllabus and we'll read them for you." action_url=url action_label="Add an LO" only %}
   Getting Real, ch. 9 "The Blank Slate": an empty screen says what to do first.
 {% endcomment %}<div class="pl-empty text-center">
   <div class="pl-empty-mark" aria-hidden="true">✦</div>
   <h2 class="h5">{{ title }}</h2>
-  {% if text %}<p class="text-body-secondary mb-3">{{ text }}</p>{% endif %}
+  {% if message %}<p class="text-body-secondary mb-3">{{ message }}</p>{% endif %}
   {% if action_url %}<a class="btn btn-primary" href="{{ action_url }}">{{ action_label }}</a>{% endif %}
 </div>
 ```
@@ -4868,7 +4877,7 @@ def styleguide(request):
 {% block title %}Home{% endblock %}
 {% block content %}
   {% url 'admin:index' as admin_url %}
-  {% include "includes/empty_state.html" with title="Welcome to POlaris" text="Your role-based home page arrives in Sprint 2. Until then, explore the data in the admin." action_url=admin_url action_label="Open the admin" only %}
+  {% include "includes/empty_state.html" with title="Welcome to POlaris" message="Your role-based home page arrives in Sprint 2. Until then, explore the data in the admin." action_url=admin_url action_label="Open the admin" only %}
 {% endblock %}
 ```
 
@@ -4917,7 +4926,7 @@ def styleguide(request):
 
   <section class="mb-5">
     <h2 class="h5">Empty state</h2>
-    {% include "includes/empty_state.html" with title="No assessments yet" text="Add the exams and projects you grade." action_url="#" action_label="Add an assessment" only %}
+    {% include "includes/empty_state.html" with title="No assessments yet" message="Add the exams and projects you grade." action_url="#" action_label="Add an assessment" only %}
   </section>
 {% endblock %}
 ```

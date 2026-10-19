@@ -484,9 +484,9 @@ Partials are defined once at the top with `{% partialdef %}` (not `inline`) and 
 
 {% if not sheet.columns %}
   {% url 'outcomes:setup' offering_id=offering.id as setup_url %}
-  {% include "includes/empty_state.html" with title="No assessments yet" text="Add your midterm, final and other assessments first. Then come back here to enter grades." action_url=setup_url action_label="Set up assessments" only %}
+  {% include "includes/empty_state.html" with title="No assessments yet" message="Add your midterm, final and other assessments first. Then come back here to enter grades." action_url=setup_url action_label="Set up assessments" only %}
 {% elif not sheet.rows %}
-  {% include "includes/empty_state.html" with title="No students enrolled" text="The department head adds students to this course. Ask them, or check back later." only %}
+  {% include "includes/empty_state.html" with title="No students enrolled" message="The department head adds students to this course. Ask them, or check back later." only %}
 {% else %}
   <p class="text-body-secondary small mb-2">
     Type a score and press <kbd>Enter</kbd>. Use <kbd>EX</kbd> for excused. Arrow keys move between cells.
@@ -640,7 +640,7 @@ The draft dot is never colour alone: every dotted cell also contains the visuall
 
 **8. The permission matrix.**
 
-Add both URLs to the matrix test in the format S2-02 set up. The expected status per role:
+Each URL already has a row in `ROUTES` (`apps/accounts/tests/routes.py`, written in S2-02). A row switches on by itself once its URL resolves, so there is nothing to add; run the matrix test and check it gives these results:
 
 | URL name | kwargs | Method | anonymous | student | instructor (other course) | instructor (own) | head | admin |
 |---|---|---|---|---|---|---|---|---|
@@ -1883,7 +1883,7 @@ At the end of `{% block content %}` in `sheet.html`, add the modal shell. Bootst
 </form>
 ```
 
-**7. The permission matrix.**
+**7. The permission matrix.** Each URL already has a row in `ROUTES` (`apps/accounts/tests/routes.py`, written in S2-02). A row switches on by itself once its URL resolves, so there is nothing to add; run the matrix test and check it gives these results:
 
 | URL name | kwargs | Method | anonymous | student | instructor (other) | instructor (own) | head | admin |
 |---|---|---|---|---|---|---|---|---|

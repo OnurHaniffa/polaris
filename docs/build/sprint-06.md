@@ -17,7 +17,7 @@ Sprint 5 left us with the hard parts already working in a shell: `schemas.py`, `
 ```
 Mon ──────── Tue ──────── Wed ──────── Thu ──────── Fri ──────── Sat ──────── Sun
 A: S6-01 ─────────────►merge  S6-03 ─────────►merge         eval run → docs/process/sprint-06/eval.md
-B: weight_grid origins ──── S6-02 review form ─────────────────────►merge   staging walkthrough
+B: review.py + tests ────── S6-02 review form ─────────────────────►merge   staging walkthrough
 C: S6-04 suggest ─────────►merge   S6-05 attainment ───────────────────►merge
 ```
 
@@ -141,7 +141,7 @@ class ReviewDraft:
 
 Why keys instead of database ids: nothing exists in the database until Apply, and the instructor can delete or add rows in the review screen. Keys like `a2` and `l3` let the grids refer to a row that has no id yet.
 
-**From S2-05 (`apps/outcomes/matrix.py`, `templates/includes/weight_grid.html`):** `validate_assessment_lo_cell(raw) -> Decimal | None` and `validate_lo_po_cell(raw) -> int | None`, both raising `ValidationError` with a user-facing message; `save_lo_po_matrix(...)` sets `source=MANUAL` on any cell whose value a human changes. The grid include takes one `WeightGrid` object. S6-02 adds two optional fields to its cells (`origin`, `rationale`) and shows the include in full after that change.
+**From S2-05 (`apps/outcomes/matrix.py`, `templates/includes/weight_grid.html`):** `validate_assessment_lo_cell(raw) -> Decimal | None` and `validate_lo_po_cell(raw) -> int | None`, both raising `ValidationError` with a user-facing message; `save_lo_po_matrix(...)` sets `source=MANUAL` on any cell whose value a human changes. The grid include takes `grid` (a `WeightGrid`) and `editable`. S2-05 already gives cells `origin` and `rationale` and colours them; S6-02 reuses the include unchanged.
 
 **From S2-02 / S5-02:** `require_offering_access`, `can_edit_offering`, `ensure_term_open` (raises `ValidationError("…term is closed…")`), Celery eager in tests (`CELERY_TASK_ALWAYS_EAGER = True`), and pytest-django's `django_capture_on_commit_callbacks` fixture for code that enqueues with `transaction.on_commit`.
 
@@ -828,7 +828,7 @@ function initDropzones(root = document) {
 
 The input is visually hidden, not `display: none`. A `display: none` input can't take keyboard focus, and the `:focus-within` outline is how a keyboard user sees where they are.
 
-**9. Add the three URLs to the permission matrix test.** Follow the row format already in `test_permission_matrix.py`. The expected results are: student 404, instructor of another offering 404, instructor of this offering 200, head 200, anonymous 302 to login. For `ingestion:job` and `ingestion:status`, the fixture builds a `PENDING` syllabus job on the matrix's offering.
+**9. Permission matrix.** The three URLs already have rows in `ROUTES` (`apps/accounts/tests/routes.py`, S2-02); they switch on when the URLs exist. Check that The expected results are: student 404, instructor of another offering 404, instructor of this offering 200, head 200, anonymous 302 to login. For `ingestion:job` and `ingestion:status`, the fixture builds a `PENDING` syllabus job on the matrix's offering.
 
 ### Tests
 
@@ -1206,7 +1206,7 @@ PR title: **S6-01 Syllabus upload, background extraction and progress page** (`C
 
 When a job is `READY`, `/ingestion/<job_id>/review/` shows everything Claude found as an editable form. Course info is compared with the catalog, and mismatches are highlighted. LOs show their quoted source text, and assessments are editable too. Both weight grids reuse the B5 grid component, and every cell is coloured by where its value came from: **document** (blue), **derived** by our rule (teal), or **AI-suggested** (violet, with the reason on hover). Warnings sit at the top. **Save draft** stores the edits on the job; nothing touches the course until Apply (S6-03). This delivers T1.2 screen 3 and AC 2 and 5 on the screen side.
 
-This is the biggest story of the sprint (8 points). Split the PR into two if it passes 400 lines: (a) `review.py` and its tests, (b) the view, template and grid include.
+This is the biggest story of the sprint (8 points). Split the PR into two if it passes 400 lines: (a) `review.py` and its tests, (b) the view and template.
 
 ### Files
 
@@ -1217,113 +1217,25 @@ This is the biggest story of the sprint (8 points). Split the PR into two if it 
 | `apps/ingestion/services.py` | modify | `save_review` |
 | `apps/ingestion/views.py` | modify | `review` |
 | `apps/ingestion/urls.py` | modify | `review` route |
-| `apps/outcomes/matrix.py` | modify | add `origin` and `rationale` to `GridCell` |
-| `templates/includes/weight_grid.html` | modify | origin colours, rationale tooltip, origin legend |
 | `apps/ingestion/templates/ingestion/review.html` | create | The review page |
-| `static/css/polaris.css` | modify | origin cell colours |
 | `apps/ingestion/tests/test_review.py` | create | Tests |
 
 ### Steps
 
-**1. Grid data shape.** S2-05 renders a grid from plain dataclasses, so templates never have to look up a dict by a computed key (Django templates can't do that). We add two optional fields to the cell. Existing B5 code doesn't set them, so the Mapping tab keeps working unchanged.
+**1. Grid data shape (already done in S2-05).** S2-05 shipped the grid dataclasses in `apps/outcomes/matrix.py` with the two fields this screen needs: `GridCell.origin` (`""`, `"document"`, `"derived"`, `"ai_suggested"`, and `"manual"` for a value a human edited) and `GridCell.rationale` (one sentence, shown on hover for AI-suggested cells). It also shipped the coloured cells, the `doc` / `calc` / `AI` text markers, the visually hidden text for screen readers, and the `--pl-origin-*` tint tokens in `polaris.css`. **Don't copy or replace `templates/includes/weight_grid.html` in this story.** It also holds the `{% partialdef cell %}` and the HTMX attributes the Mapping tab's live validation depends on (B5 AC2), and a replaced copy would silently break them.
 
-```python
-# apps/outcomes/matrix.py  (the grid dataclasses after this story; fields marked NEW are added)
-from dataclasses import dataclass, field
-
-
-@dataclass
-class GridCol:
-    label: str             # "LO 2", "PO 3"
-    tooltip: str = ""      # full description shown on hover
-
-
-@dataclass
-class GridCell:
-    name: str              # the <input name>, unique in the form
-    value: str             # what the input shows ("" = no arrow)
-    label: str             # accessible name, e.g. "Midterm I to LO 2"
-    error: str = ""
-    origin: str = ""       # NEW: "", "document", "derived", "ai_suggested", "manual"
-    rationale: str = ""    # NEW: one sentence, shown on hover for AI-suggested cells
-
-
-@dataclass
-class GridRow:
-    label: str
-    cells: list[GridCell]
-    tooltip: str = ""
-
-
-@dataclass
-class WeightGrid:
-    kind: str              # "a_lo" (percent, 0.01-100) or "lo_po" (integer 1-5)
-    caption: str
-    cols: list[GridCol]
-    rows: list[GridRow]
-    footer: list[str] | None = field(default=None)   # per-column totals (LO→PO grid)
-```
-
-**2. The grid include, after this story.** The colour is never the only signal (spec §8.2): each coloured cell also gets a small text marker (`doc`, `calc`, `AI`), visually hidden text for screen readers, and a legend. The rationale goes into `title`, which both mouse users (hover) and screen readers (accessible description) receive.
+**2. How the review screen uses the include.** It builds two `WeightGrid` objects in `build_review_grids` (step 3) and includes the component exactly like the Mapping tab does:
 
 ```django
-{# templates/includes/weight_grid.html — params: grid (WeightGrid), editable (bool) #}
-<div class="table-responsive pl-grid-wrap">
-  <table class="table table-sm align-middle pl-grid" data-grid-kind="{{ grid.kind }}">
-    <caption class="text-body-secondary small">{{ grid.caption }}</caption>
-    <thead>
-      <tr>
-        <th scope="col"><span class="visually-hidden">Row</span></th>
-        {% for col in grid.cols %}<th scope="col" class="text-center"{% if col.tooltip %} title="{{ col.tooltip }}"{% endif %}>{{ col.label }}</th>{% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in grid.rows %}
-      <tr>
-        <th scope="row"{% if row.tooltip %} title="{{ row.tooltip }}"{% endif %}>{{ row.label }}</th>
-        {% for cell in row.cells %}
-        <td class="pl-cell{% if cell.origin and cell.origin != 'manual' %} pl-cell--{{ cell.origin }}{% endif %}"
-            {% if cell.rationale %}title="{{ cell.rationale }}"{% endif %}>
-          <input type="number" name="{{ cell.name }}" value="{{ cell.value }}"
-                 class="form-control form-control-sm text-center pl-cell__input{% if cell.error %} is-invalid{% endif %}"
-                 aria-label="{{ cell.label }}"
-                 {% if cell.error %}aria-invalid="true" aria-describedby="{{ cell.name }}-err"{% endif %}
-                 {% if grid.kind == "lo_po" %}min="1" max="5" step="1" inputmode="numeric"{% else %}min="0.01" max="100" step="0.01" inputmode="decimal"{% endif %}
-                 {% if not editable %}disabled{% endif %}>
-          {% if cell.origin == "document" %}<span class="pl-cell__mark" aria-hidden="true">doc</span><span class="visually-hidden">from the document</span>
-          {% elif cell.origin == "derived" %}<span class="pl-cell__mark" aria-hidden="true">calc</span><span class="visually-hidden">derived from course weight</span>
-          {% elif cell.origin == "ai_suggested" %}<span class="pl-cell__mark" aria-hidden="true">AI</span><span class="visually-hidden">suggested by AI: {{ cell.rationale }}</span>{% endif %}
-          {% if cell.error %}<div id="{{ cell.name }}-err" class="invalid-feedback">{{ cell.error }}</div>{% endif %}
-        </td>
-        {% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-    {% if grid.footer %}
-    <tfoot>
-      <tr><th scope="row">Total</th>{% for total in grid.footer %}<td class="text-center pl-num">{{ total }}</td>{% endfor %}</tr>
-    </tfoot>
-    {% endif %}
-  </table>
-</div>
+{% include "includes/weight_grid.html" with grid=a_lo_grid editable=True only %}
 ```
 
-The legend lives in the review page, not in the include, because the Mapping tab only ever shows the AI colour.
+Two differences from the Mapping tab, both deliberate:
 
-```css
-/* static/css/polaris.css — origin colours (tokens from spec §8.2) */
-:root { --pl-origin-document: #dbe7ff; --pl-origin-derived: #d5f2ee; --pl-origin-ai: #ece3ff; }
-[data-bs-theme="dark"] { --pl-origin-document: #1f3358; --pl-origin-derived: #183f3a; --pl-origin-ai: #36295a; }
-.pl-cell { position: relative; min-width: 4.5rem; }
-.pl-cell--document { background: var(--pl-origin-document); }
-.pl-cell--derived { background: var(--pl-origin-derived); }
-.pl-cell--ai_suggested { background: var(--pl-origin-ai); }
-.pl-cell__mark { position: absolute; top: 1px; right: 3px; font-size: .625rem; line-height: 1;
-  color: var(--bs-secondary-color); pointer-events: none; }
-.pl-legend__swatch { display: inline-block; width: .9rem; height: .9rem; border-radius: .2rem;
-  vertical-align: -2px; margin-right: .25rem; border: 1px solid var(--bs-border-color); }
-.pl-num { font-variant-numeric: tabular-nums; }
-```
+- **No live validation.** The review grids leave `WeightGrid.validate_url` empty, so the include renders plain inputs without `hx-post`. The cells in a review are named by draft keys (`alo__a1__l2`), not database ids, so `outcomes:validate_cell` couldn't parse them. They are validated on **Save draft** with the same `validate_assessment_lo_cell` / `validate_lo_po_cell` functions instead, so the rules are identical.
+- **A legend.** The review page shows all three origin colours, so it adds a legend above the grids (step 6). The Mapping tab only ever shows the AI colour and has its own one-line legend.
+
+The cell-naming helpers in `review.py` (`cell_name`, `A_LO = "alo"`, `LO_PO = "lopo"`) are local to the review form and are **not** the ones in `outcomes/matrix.py` (which name cells by database id, `a_lo-12-34`). Import them from `apps.ingestion.review`, never mix the two.
 
 **3. The review form.** A review contains four kinds of input: an LO list, an assessment list, and two grids whose rows and columns depend on those lists. One Django `Form` can't express that, so `ReviewForm` is a small plain class holding two formsets and the grid inputs, with one `is_valid()` and one `to_draft()`. The rules:
 
@@ -2012,7 +1924,7 @@ def test_review_of_applied_job_redirects(client, wizard, ready_job):
     assert resp.status_code == 302 and resp.url == reverse("ingestion:job", args=[ready_job.pk])
 ```
 
-Remove the `xfail` marker from `test_ready_job_redirects_htmx_to_review` (S6-01) in this PR. Add `ingestion:review` to the permission matrix with the same expectations as `ingestion:job`.
+Remove the `xfail` marker from `test_ready_job_redirects_htmx_to_review` (S6-01) in this PR. `ingestion:review` already has its row in `ROUTES` (S2-02); check it matches `ingestion:job`.
 
 ### Check it works
 
@@ -3294,7 +3206,7 @@ class AttainmentOptionsForm(forms.Form):
     }
 ```
 
-The drill-down view returns the partial that fills a Bootstrap modal (the "Modal content" HTMX pattern, spec §8.5). It must rebuild the same term selection as the dashboard, so it reuses S3-04's helper. If S3-04 resolved terms inline in `department`, move that code into `_selected_terms(request, program)` in this PR, and use it in both views.
+The drill-down view returns the partial that fills a Bootstrap modal (the "Modal content" HTMX pattern, spec §8.5). It must rebuild the same term selection as the dashboard, so it reuses S3-04's helper. S3-04 defines `_selected_terms(request, program)` in `apps/reports/views.py`; it returns `(terms, include_open, form)`.
 
 ```python
 # apps/reports/views.py  (add)
@@ -3302,6 +3214,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 
 from apps.accounts.models import User
+from apps.accounts.permissions import head_program_or_404
 from apps.catalog.models import ProgramOutcome
 from apps.scoring.aggregates import attainment_students as attainment_students_for
 
@@ -3310,9 +3223,9 @@ from apps.scoring.aggregates import attainment_students as attainment_students_f
 @require_role("head")
 @require_GET
 def attainment_students(request, po_id):
-    program = _head_program(request.user)                     # S3-04 helper
+    program = head_program_or_404(request.user)               # S2-02
     po = get_object_or_404(ProgramOutcome, pk=po_id, po_set__program=program)
-    terms, _include_open = _selected_terms(request, program)  # S3-04 helper
+    terms, _include_open, _form = _selected_terms(request, program)  # S3-04 helper
     options = AttainmentOptionsForm(request.GET or None)
     by, _target = options.values()
     key = request.GET.get("key", "")
@@ -3362,7 +3275,7 @@ path("department/attainment/<int:po_id>/", views.attainment_students, name="atta
     </div>
 
     {% if not attainment.columns %}
-      {% include "includes/empty_state.html" with title="No students to show yet" text="Attainment appears once students are enrolled and grades are published in the selected terms." only %}
+      {% include "includes/empty_state.html" with title="No students to show yet" message="Attainment appears once students are enrolled and grades are published in the selected terms." only %}
     {% else %}
     <div class="table-responsive">
       <table class="table table-sm align-middle pl-attain">
@@ -3480,7 +3393,13 @@ function renderAttainmentChart() {
 
 The table stays the primary display. The chart is the "at a glance" view, and screen readers get the table.
 
-**7. Permission matrix.** Add `reports:attainment_students` (GET, `?key=2023`): head 200, everyone else 404 (`require_role("head")` returns 404 per §3.4), anonymous 302.
+**7. Permission matrix.** `reports:attainment_students` is new (not in §4.8), so add a line to `ROUTES` in `apps/accounts/tests/routes.py`:
+
+```python
+    Route("reports:attainment_students", HEAD, kwargs=lambda w: {"po_id": w.po.pk}, story="S6-05"),
+```
+
+The matrix sends no `?key=`, so the allowed roles get the view's 404 for a missing key; give the row `ok=P({200, 404})` if you keep that behaviour, or have the view fall back to the first cohort. Everyone else gets 404 (`require_role("head")`), anonymous 302.
 
 ### Tests
 

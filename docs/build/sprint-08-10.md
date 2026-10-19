@@ -1886,7 +1886,7 @@ def reminders_unsubscribe(request, token):
     <div><button class="btn btn-primary" type="submit">Save deadline</button></div>
   </form>
   <h2 class="h5">Reminders sent</h2>
-  {% include "includes/empty_state.html" with message="No reminders sent yet." only %}
+  {% include "includes/empty_state.html" with title="Nothing sent yet" message="No reminders sent yet." only %}
   {% if logs %}
   <table class="table table-sm">
     <thead><tr><th>Date</th><th>Instructor</th><th>Courses</th></tr></thead>
@@ -2804,7 +2804,7 @@ def assisting(request):
       {% endfor %}
     </ul>
   {% else %}
-    {% include "includes/empty_state.html" with message="No assistants yet." only %}
+    {% include "includes/empty_state.html" with title="No assistants yet" message="No assistants yet." only %}
   {% endif %}
 </div>
 {% endblock %}
@@ -2820,7 +2820,7 @@ def assisting(request):
   {% for o in offerings %}
     <a class="d-block mb-2" href="{% url 'grading:sheet' offering_id=o.pk %}">{{ o.course.code }} · {{ o.course.title }} ({{ o.term.name }})</a>
   {% empty %}
-    {% include "includes/empty_state.html" with message="You are not an assistant on any course." only %}
+    {% include "includes/empty_state.html" with title="No courses" message="You are not an assistant on any course." only %}
   {% endfor %}
 </div>
 {% endblock %}

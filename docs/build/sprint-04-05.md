@@ -2050,7 +2050,7 @@ def test_confirm_rejects_get(client, upload_course):
     assert client.get(url).status_code == 405
 ```
 
-**Permission matrix.** Add the four URLs to `apps/accounts/tests/test_permission_matrix.py` in the shape the file already uses. Expected status per role (GET):
+**Permission matrix.** Each of the four URLs already has a row in `ROUTES` (`apps/accounts/tests/routes.py`, written in S2-02). A row switches on by itself once its URL resolves, so there is nothing to add; run the matrix test and check it gives these results (the matrix sends `upload_confirm` as a POST, so the allowed roles get a redirect rather than 405):
 
 | URL | Anonymous | Student | Instructor (other course) | Instructor (own) | Head | Admin |
 |---|---|---|---|---|---|---|
@@ -3248,7 +3248,7 @@ def test_success_stores_draft_usage_and_cost(job, monkeypatch):
     assert job.cost_usd == Decimal("0.1680")              # 12k × $4/M + 6k × $20/M
     assert job.request_id == "req_011CTest" and job.model == "claude-opus-5-5"
     assert job.result["prompt_version"] == tasks.PROMPT_VERSION
-    assert len(job.result["draft"]["learning_outcomes"]) == 4
+    assert len(job.result["draft"]["los"]) == 4
     assert job.warnings == []
 
 
@@ -3391,7 +3391,7 @@ with open("apps/ingestion/evals/syllabi/cse311.pdf", "rb") as f:
 enqueue_on_commit(run_syllabus_extraction, job.pk)
 ```
 
-The worker log shows the task. About 30–60 s later, `IngestionJob.objects.get(pk=job.pk)` has `status='ready'`, `cost_usd` around 0.2, a `request_id` beginning `req_`, and `result['draft']['learning_outcomes']` holds the four CSE 311 LOs. Look at the job in Django admin too: that's where you'll debug real failures.
+The worker log shows the task. About 30–60 s later, `IngestionJob.objects.get(pk=job.pk)` has `status='ready'`, `cost_usd` around 0.2, a `request_id` beginning `req_`, and `result['draft']['los']` holds the four CSE 311 LOs. Look at the job in Django admin too: that's where you'll debug real failures.
 
 ### Done when
 
@@ -3424,7 +3424,7 @@ Claude's answer is a proposal, not data we trust. This story writes the pure fun
 
 ### Design
 
-**Why a separate `ReviewDraft` instead of editing the Pydantic model.** `SyllabusExtraction` describes what *the model* said, including its mistakes. `ReviewDraft` describes what *we propose to save*. It's renumbered, clamped and derived, and every cell carries an **origin** (`document`, `derived` or `suggested`), which the review screen turns into the three colours of T1.2. Keeping both means we can always show "the document said X, we changed it to Y because Z".
+**Why a separate `ReviewDraft` instead of editing the Pydantic model.** `SyllabusExtraction` describes what *the model* said, including its mistakes. `ReviewDraft` describes what *we propose to save*. It's renumbered, clamped and derived, and every cell carries an **origin** (`document`, `derived` or `ai_suggested`; the review screen adds `manual` when a human edits a cell), which the review screen turns into the three colours of T1.2. Rows are identified by stable **keys** (`l1`, `a2`) rather than numbers or names, because the instructor can add, delete and rename rows on the review screen before anything exists in the database. Keeping both means we can always show "the document said X, we changed it to Y because Z".
 
 **Why pure.** `derive_draft(extraction, valid_po_numbers)` takes plain data and returns plain data. The tests cover every row of the §7.6 table in milliseconds without a database or the API, which is what spec §7.10 asks for. `validate_and_derive(extraction, offering)` is a three-line wrapper that looks up the PO numbers.
 
@@ -3482,86 +3482,102 @@ NO_LEARNING_OUTCOMES = ("We couldn't find learning outcomes in this document. Se
 
 
 class Origin:
-    """Where a cell's value came from. Drives the colour on the review screen (§8.2)."""
-    DOCUMENT = "document"      # copied from a table or sentence in the syllabus
-    DERIVED = "derived"        # link stated in the document, weight computed by our rule
-    SUGGESTED = "suggested"    # proposed by the model
+    """Where a value in the review draft came from. Drives the cell colours (spec §8.2).
+    The strings match GridCell.origin in apps/outcomes/matrix.py (S2-05)."""
+    DOCUMENT = "document"          # read from a table or statement in the syllabus (blue)
+    DERIVED = "derived"            # link stated in the document, weight computed by the §7.6 rule (teal)
+    AI_SUGGESTED = "ai_suggested"  # proposed by Claude, not in the document (violet)
+    MANUAL = "manual"              # typed or changed by a human on the review screen (no colour)
+
+
+@dataclass
+class DraftCourse:
+    code: str | None = None
+    title: str | None = None
+    credits: Decimal | None = None
+    ects: Decimal | None = None
+    language: str | None = None
 
 
 @dataclass
 class DraftLO:
-    number: int
+    key: str                 # stable id inside the draft, e.g. "l1". Never shown to the user
+    number: int              # 1..n, contiguous
     description: str
-    source_quote: str
+    source_quote: str = ""
 
 
 @dataclass
 class DraftAssessment:
-    key: str                         # "A1", "A2"… stable id inside the draft (names can be edited)
+    key: str                 # stable id inside the draft, e.g. "a1" (names can be edited)
     name: str
-    kind: str
-    course_weight: Decimal | None
+    kind: str                # one of Assessment.Kind values
     max_score: Decimal
-    source_quote: str
+    course_weight: Decimal | None
+    source_quote: str = ""
 
 
 @dataclass
-class DraftAssessmentLO:
+class DraftALO:
     assessment_key: str
-    lo_number: int
-    weight: Decimal                  # 0 < w ≤ 100
-    origin: str                      # Origin.DERIVED or Origin.SUGGESTED
+    lo_key: str
+    weight: Decimal          # 0 < w <= 100
+    origin: str              # DERIVED or AI_SUGGESTED from the extraction; MANUAL after a human edit
 
 
 @dataclass
 class DraftLOPO:
-    lo_number: int
-    po_number: int
-    weight: int                      # 1..5
-    origin: str                      # Origin.DOCUMENT or Origin.SUGGESTED
-    rationale: str
+    lo_key: str
+    po_number: int           # number inside the offering program's active PO set
+    weight: int              # 1..5
+    origin: str              # DOCUMENT or AI_SUGGESTED from the extraction; MANUAL after a human edit
+    rationale: str = ""
+
+
+def _dec(v):
+    return None if v is None else Decimal(str(v))
 
 
 @dataclass
 class ReviewDraft:
-    course_code: str | None
-    course_title: str | None
-    credits: Decimal | None
-    ects: Decimal | None
-    language: str | None
-    learning_outcomes: list[DraftLO]
+    course: DraftCourse
+    los: list[DraftLO]
     assessments: list[DraftAssessment]
-    assessment_lo: list[DraftAssessmentLO]
+    a_lo: list[DraftALO]
     lo_po: list[DraftLOPO]
-    course_po_levels: dict[int, int] = field(default_factory=dict)   # PO number -> 0..5 from the syllabus
+    course_po_levels: dict[int, int] = field(default_factory=dict)   # PO number -> 0..5
     warnings: list[str] = field(default_factory=list)
 
     def to_json(self) -> dict:
-        """JSON-safe dict for IngestionJob.result. Decimals become strings."""
-        def convert(value):
-            if isinstance(value, Decimal):
-                return str(value)
-            if isinstance(value, dict):
-                return {str(k): convert(v) for k, v in value.items()}
-            if isinstance(value, list):
-                return [convert(v) for v in value]
-            return value
-        return convert(asdict(self))
+        """JSON-safe dict for IngestionJob.result: Decimal -> str, dict keys -> str."""
+        def conv(v):
+            if isinstance(v, Decimal):
+                return str(v)
+            if isinstance(v, dict):
+                return {str(k): conv(x) for k, x in v.items()}
+            if isinstance(v, list):
+                return [conv(x) for x in v]
+            return v
+        return conv(asdict(self))
 
     @classmethod
     def from_json(cls, data: dict) -> ReviewDraft:
-        def dec(value):
-            return None if value is None else Decimal(value)
+        c = data.get("course") or {}
         return cls(
-            course_code=data["course_code"], course_title=data["course_title"],
-            credits=dec(data["credits"]), ects=dec(data["ects"]), language=data["language"],
-            learning_outcomes=[DraftLO(**lo) for lo in data["learning_outcomes"]],
-            assessments=[DraftAssessment(**{**a, "course_weight": dec(a["course_weight"]),
-                                            "max_score": Decimal(a["max_score"])}) for a in data["assessments"]],
-            assessment_lo=[DraftAssessmentLO(**{**c, "weight": Decimal(c["weight"])}) for c in data["assessment_lo"]],
-            lo_po=[DraftLOPO(**c) for c in data["lo_po"]],
-            course_po_levels={int(k): v for k, v in data["course_po_levels"].items()},
-            warnings=list(data["warnings"]),
+            course=DraftCourse(code=c.get("code"), title=c.get("title"), credits=_dec(c.get("credits")),
+                               ects=_dec(c.get("ects")), language=c.get("language")),
+            los=[DraftLO(**lo) for lo in data["los"]],
+            assessments=[DraftAssessment(key=a["key"], name=a["name"], kind=a["kind"],
+                                         max_score=Decimal(a["max_score"]),
+                                         course_weight=_dec(a["course_weight"]),
+                                         source_quote=a.get("source_quote", ""))
+                         for a in data["assessments"]],
+            a_lo=[DraftALO(x["assessment_key"], x["lo_key"], Decimal(x["weight"]), x["origin"])
+                  for x in data["a_lo"]],
+            lo_po=[DraftLOPO(x["lo_key"], int(x["po_number"]), int(x["weight"]), x["origin"],
+                             x.get("rationale", "")) for x in data["lo_po"]],
+            course_po_levels={int(k): int(v) for k, v in (data.get("course_po_levels") or {}).items()},
+            warnings=list(data.get("warnings") or []),
         )
 
 
@@ -3592,9 +3608,9 @@ def derive_draft(extraction: SyllabusExtraction, valid_po_numbers: set[int]) -> 
         if len(set(original_numbers)) != len(original_numbers):
             warnings.append("Some learning outcome numbers were used twice. References to a repeated "
                             "number were linked to its first occurrence: check the mapping grids.")
-    los = [DraftLO(n, lo.description.strip(), lo.source_quote.strip())
+    los = [DraftLO(f"l{n}", n, lo.description.strip(), lo.source_quote.strip())
            for n, lo in enumerate(extraction.learning_outcomes, start=1)]
-    lo_numbers = {lo.number for lo in los}
+    key_of = {lo.number: lo.key for lo in los}                 # new LO number -> draft key
 
     # 2. Assessments: defaults, ranges, unique names.
     assessments: list[DraftAssessment] = []
@@ -3617,7 +3633,8 @@ def derive_draft(extraction: SyllabusExtraction, valid_po_numbers: set[int]) -> 
         if weight is not None and not (0 <= weight <= HUNDRED):
             warnings.append(f"{name}: a course weight of {a.course_weight_percent}% is impossible; we cleared it.")
             weight = None
-        assessments.append(DraftAssessment(f"A{index}", name, a.kind, weight, max_score, a.source_quote.strip()))
+        assessments.append(DraftAssessment(key=f"a{index}", name=name, kind=a.kind, max_score=max_score,
+                                           course_weight=weight, source_quote=a.source_quote.strip()))
 
     weights = [a.course_weight for a in assessments]
     if assessments and all(w is not None for w in weights):
@@ -3631,14 +3648,14 @@ def derive_draft(extraction: SyllabusExtraction, valid_po_numbers: set[int]) -> 
 
     # 3. Assessment → LO arrows, with the derived weight rule.
     all_weights_known = bool(assessments) and all(w is not None for w in weights)
-    assessment_lo: list[DraftAssessmentLO] = []
+    a_lo: list[DraftALO] = []
     for source, draft in zip(extraction.assessments, assessments, strict=True):
         if all_weights_known and draft.course_weight == 0:
             if source.measures_lo_numbers:
                 warnings.append(f"{draft.name} is worth 0% of the grade, so it feeds no learning outcome.")
             continue
         arrow_weight = draft.course_weight if all_weights_known else HUNDRED
-        origin = Origin.DERIVED if source.measures_stated_in_document else Origin.SUGGESTED
+        origin = Origin.DERIVED if source.measures_stated_in_document else Origin.AI_SUGGESTED
         seen: set[int] = set()
         for old_number in source.measures_lo_numbers:
             lo_number = renumber.get(old_number)
@@ -3649,7 +3666,7 @@ def derive_draft(extraction: SyllabusExtraction, valid_po_numbers: set[int]) -> 
             if lo_number in seen:
                 continue
             seen.add(lo_number)
-            assessment_lo.append(DraftAssessmentLO(draft.key, lo_number, arrow_weight, origin))
+            a_lo.append(DraftALO(draft.key, key_of[lo_number], arrow_weight, origin))
 
     # 4. Course-level PO contribution table (Bologna syllabi).
     course_po_levels: dict[int, int] = {}
@@ -3682,9 +3699,9 @@ def derive_draft(extraction: SyllabusExtraction, valid_po_numbers: set[int]) -> 
             warnings.append(f"LO {lo_number} → PO {link.po_number} had weight {weight}; weights are 1–5, "
                             f"so we used {clamped}.")
             weight = clamped
-        origin = Origin.DOCUMENT if link.stated_in_document else Origin.SUGGESTED
+        origin = Origin.DOCUMENT if link.stated_in_document else Origin.AI_SUGGESTED
         level = course_po_levels.get(link.po_number)
-        if origin == Origin.SUGGESTED and level is not None and weight > level:
+        if origin == Origin.AI_SUGGESTED and level is not None and weight > level:
             if level == 0:
                 warnings.append(f"Suggested link LO {lo_number} → PO {link.po_number} removed: the syllabus "
                                 f"says the course does not contribute to PO {link.po_number}.")
@@ -3693,14 +3710,14 @@ def derive_draft(extraction: SyllabusExtraction, valid_po_numbers: set[int]) -> 
                             f"{level}, the course's stated contribution level.")
             weight = level
         seen_pairs.add((lo_number, link.po_number))
-        lo_po.append(DraftLOPO(lo_number, link.po_number, weight, origin, link.rationale.strip()))
+        lo_po.append(DraftLOPO(key_of[lo_number], link.po_number, weight, origin, link.rationale.strip()))
 
     # 6. Coverage hints, the same ideas as mapping lint L001 and L003.
-    fed = {cell.lo_number for cell in assessment_lo}
+    fed = {cell.lo_key for cell in a_lo}
     for lo in los:
-        if lo.number not in fed:
+        if lo.key not in fed:
             warnings.append(f"LO {lo.number} is not assessed by anything yet.")
-    feeding = {cell.assessment_key for cell in assessment_lo}
+    feeding = {cell.assessment_key for cell in a_lo}
     for a in assessments:
         if a.key not in feeding and not (all_weights_known and a.course_weight == 0):
             warnings.append(f"{a.name} doesn't measure any learning outcome yet, so its grades won't count.")
@@ -3708,9 +3725,10 @@ def derive_draft(extraction: SyllabusExtraction, valid_po_numbers: set[int]) -> 
     warnings.extend(f"From the document reader: {w}" for w in extraction.warnings)
 
     return ReviewDraft(
-        course_code=extraction.course_code, course_title=extraction.course_title,
-        credits=to_decimal(extraction.credits), ects=to_decimal(extraction.ects), language=extraction.language,
-        learning_outcomes=los, assessments=assessments, assessment_lo=assessment_lo, lo_po=lo_po,
+        course=DraftCourse(code=extraction.course_code, title=extraction.course_title,
+                           credits=to_decimal(extraction.credits), ects=to_decimal(extraction.ects),
+                           language=extraction.language),
+        los=los, assessments=assessments, a_lo=a_lo, lo_po=lo_po,
         course_po_levels=course_po_levels, warnings=warnings,
     )
 
@@ -3732,8 +3750,8 @@ def validate_and_derive(extraction: SyllabusExtraction, offering) -> ReviewDraft
 |---|---|
 | `DraftLO` | `LearningOutcome(number, description, source="syllabus")` |
 | `DraftAssessment` | `Assessment(name, kind, max_score, course_weight, position=index)` |
-| `DraftAssessmentLO` | `AssessmentLOWeight(weight)`; assessment found by `key`, LO by `number` |
-| `DraftLOPO` | `LOPOWeight(weight, source="syllabus" if origin == "document" else "ai_suggested", rationale)` |
+| `DraftALO` | `AssessmentLOWeight(weight)`; assessment found by `assessment_key`, LO by `lo_key` |
+| `DraftLOPO` | `LOPOWeight(weight, source=..., rationale)`; LO found by `lo_key`. `source` is `syllabus` for `document`, `ai_suggested` for `ai_suggested`, `manual` for `manual` (S6-03) |
 
 ### Tests
 
@@ -3757,19 +3775,26 @@ from apps.ingestion.validation import (
 )
 
 
+def _number(draft):
+    return {lo.key: lo.number for lo in draft.los}
+
+
 def cells(draft):
-    return {(c.assessment_key, c.lo_number): (c.weight, c.origin) for c in draft.assessment_lo}
+    """{(assessment key, LO number): (weight, origin)}: LO numbers read better in assertions than keys."""
+    n = _number(draft)
+    return {(c.assessment_key, n[c.lo_key]): (c.weight, c.origin) for c in draft.a_lo}
 
 
 def links(draft):
-    return {(c.lo_number, c.po_number): (c.weight, c.origin) for c in draft.lo_po}
+    n = _number(draft)
+    return {(n[c.lo_key], c.po_number): (c.weight, c.origin) for c in draft.lo_po}
 
 
 def test_clean_extraction_has_no_warnings():
     draft = derive_draft(cse311(), ALL_POS)
     assert draft.warnings == []
-    assert [lo.number for lo in draft.learning_outcomes] == [1, 2, 3, 4]
-    assert [a.key for a in draft.assessments] == ["A1", "A2", "A3", "A4"]
+    assert [lo.number for lo in draft.los] == [1, 2, 3, 4]
+    assert [a.key for a in draft.assessments] == ["a1", "a2", "a3", "a4"]
     assert draft.assessments[0].max_score == Decimal("100")
 
 
@@ -3792,8 +3817,8 @@ def test_gapped_lo_numbers_are_renumbered_and_references_follow():
         lo_po_links=[link(4, 3, 5, stated=True)],
     )
     draft = derive_draft(extraction, ALL_POS)
-    assert [lo.number for lo in draft.learning_outcomes] == [1, 2, 3]
-    assert cells(draft) == {("A1", 3): (Decimal("100.00"), Origin.DERIVED)}
+    assert [lo.number for lo in draft.los] == [1, 2, 3]
+    assert cells(draft) == {("a1", 3): (Decimal("100.00"), Origin.DERIVED)}
     assert links(draft) == {(3, 3): (5, Origin.DOCUMENT)}
     assert any("renumbered" in w for w in draft.warnings)
 
@@ -3802,21 +3827,21 @@ def test_duplicate_lo_numbers_warn_twice():
     extraction = cse311(learning_outcomes=[lo(1, "A"), lo(1, "B"), lo(2, "C")], lo_po_links=[],
                         assessments=[assessment("Final", "final", 100.0, measures=[1, 2])])
     draft = derive_draft(extraction, ALL_POS)
-    assert [lo.description for lo in draft.learning_outcomes] == ["A", "B", "C"]
+    assert [lo.description for lo in draft.los] == ["A", "B", "C"]
     assert any("used twice" in w for w in draft.warnings)
 
 
 def test_reference_to_missing_lo_is_dropped():
     extraction = cse311(assessments=[assessment("Final", "final", 100.0, measures=[1, 9])])
     draft = derive_draft(extraction, ALL_POS)
-    assert ("A1", 1) in cells(draft)
+    assert ("a1", 1) in cells(draft)
     assert all(lo_number != 9 for _, lo_number in cells(draft))
     assert any("learning outcome 9, which doesn't exist" in w for w in draft.warnings)
 
 
 def test_po_outside_active_set_is_dropped():
     draft = derive_draft(cse311(lo_po_links=[link(1, 12, 3), link(1, 2, 3)]), ALL_POS)
-    assert links(draft) == {(1, 2): (3, Origin.SUGGESTED)}
+    assert links(draft) == {(1, 2): (3, Origin.AI_SUGGESTED)}
     assert any("PO 12" in w for w in draft.warnings)
 
 
@@ -3834,7 +3859,7 @@ def test_suggestion_lowered_to_course_level():
         lo_po_links=[link(3, 5, 5), link(3, 6, 4), link(2, 5, 5, stated=True)],
     )
     draft = derive_draft(extraction, ALL_POS)
-    assert links(draft)[(3, 5)] == (3, Origin.SUGGESTED)            # lowered 5 → 3
+    assert links(draft)[(3, 5)] == (3, Origin.AI_SUGGESTED)            # lowered 5 → 3
     assert (3, 6) not in links(draft)                               # level 0 → removed
     assert links(draft)[(2, 5)] == (5, Origin.DOCUMENT)             # stated links are never lowered
     assert draft.course_po_levels == {5: 3, 6: 0}
@@ -3869,10 +3894,10 @@ def test_explicit_max_score_is_kept():
 def test_derived_weight_is_the_course_weight():
     draft = derive_draft(cse311(), ALL_POS)
     assert cells(draft) == {
-        ("A1", 1): (Decimal("25.00"), Origin.SUGGESTED), ("A1", 2): (Decimal("25.00"), Origin.SUGGESTED),
-        ("A2", 1): (Decimal("25.00"), Origin.SUGGESTED), ("A2", 2): (Decimal("25.00"), Origin.SUGGESTED),
-        ("A3", 2): (Decimal("10.00"), Origin.SUGGESTED),
-        ("A4", 3): (Decimal("40.00"), Origin.SUGGESTED), ("A4", 4): (Decimal("40.00"), Origin.SUGGESTED),
+        ("a1", 1): (Decimal("25.00"), Origin.AI_SUGGESTED), ("a1", 2): (Decimal("25.00"), Origin.AI_SUGGESTED),
+        ("a2", 1): (Decimal("25.00"), Origin.AI_SUGGESTED), ("a2", 2): (Decimal("25.00"), Origin.AI_SUGGESTED),
+        ("a3", 2): (Decimal("10.00"), Origin.AI_SUGGESTED),
+        ("a4", 3): (Decimal("40.00"), Origin.AI_SUGGESTED), ("a4", 4): (Decimal("40.00"), Origin.AI_SUGGESTED),
     }
 
 
@@ -3893,7 +3918,7 @@ def test_zero_weight_assessment_feeds_nothing():
     extraction = cse311(assessments=[assessment("Bonus", "other", 0.0, [1]),
                                      assessment("Final", "final", 100.0, [1, 2, 3, 4])])
     draft = derive_draft(extraction, ALL_POS)
-    assert all(key != "A1" for key, _ in cells(draft))
+    assert all(key != "a1" for key, _ in cells(draft))
     assert any("worth 0%" in w for w in draft.warnings)
 
 
@@ -3935,7 +3960,7 @@ Then feed it the real spike output from S5-03:
 from apps.ingestion.models import IngestionJob
 from apps.ingestion.validation import ReviewDraft
 draft = ReviewDraft.from_json(IngestionJob.objects.latest("created_at").result["draft"])
-for cell in draft.assessment_lo: print(cell)       # CSE 311: Midterm I → LO 1, LO 2 at 25.00 …
+for cell in draft.a_lo: print(cell)               # CSE 311: a1 → l1, l2 at 25.00 …
 print(draft.warnings)
 ```
 
@@ -4411,7 +4436,7 @@ Names this chapter adds beyond spec §4.8. Add each line to §4.8 in the PR that
 | `ingestion.extraction` | `cost_usd` | `(model, input_tokens, output_tokens) -> Decimal` | Cost per call, spec §7.7 |
 | `ingestion.tasks` | `mark_failed`, `record_usage`, `save_ready`, `backoff_seconds` | — | Task helpers |
 | `ingestion.validation` | `derive_draft` | `(extraction, valid_po_numbers: set[int]) -> ReviewDraft` | Pure core of `validate_and_derive` |
-| `ingestion.validation` | `ReviewDraft`, `DraftLO`, `DraftAssessment`, `DraftAssessmentLO`, `DraftLOPO`, `Origin` | dataclasses | The reviewable draft (consumed by S6-02, S6-03) |
+| `ingestion.validation` | `ReviewDraft`, `DraftCourse`, `DraftLO`, `DraftAssessment`, `DraftALO`, `DraftLOPO`, `Origin` | dataclasses | The reviewable draft (consumed by S6-02, S6-03) |
 | `ingestion.evals.metrics` | `score_run`, `RunScore`, `is_stable`, `greedy_match`, `average` | — | Eval scoring |
 | — | URL `grading:upload_*` views take `(request, offering, perms_for, job_id, **kwargs)` | — | Assumes the decorator passes `offering` and `perms_for` as keywords (spec §4.8) |
 
