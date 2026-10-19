@@ -54,7 +54,7 @@ Read Part 0 every time you sit down to work. Read Parts 1–3 once, carefully, b
 | Area | Status |
 |---|---|
 | Spec | ✅ v1.1 written (code map + build guide), awaiting team review |
-| TA confirmation of 3-person team | ⏳ not yet asked |
+| Team size | ✅ 3 people is fine (confirmed by Onur 19 Oct); Onur takes the project in one of the two courses only. No TA email needed |
 | GitHub repo | ✅ created 16 Oct, public, `develop` default; Fatmaaa-Demir and ZeynepUygun05 accepted their invites |
 | Branch protection | ✅ S0-01 done 19 Oct: `main` and `develop` need a PR + 1 approval; squash and merge-commit only; branches deleted on merge. Required CI checks get added in S0-05. Teammates still need to verify their git email (S0-01 step 1) |
 | Backlog in GitHub Projects | ⏳ |
