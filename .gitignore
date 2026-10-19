@@ -227,3 +227,7 @@ staticfiles/
 .DS_Store
 .idea/
 .vscode/
+
+# POlaris additions (spec §10.3)
+*.sqlite3
+junit.xml
