@@ -49,16 +49,16 @@ Read Part 0 every time you sit down to work. Read Parts 1–3 once, carefully, b
 > Update this block at the end of every sprint review. It is the first thing a teammate reads.
 
 **Current sprint:** Sprint 0 (16 – 18 Oct, running late; finishing 19–20 Oct): setup
-**Last updated:** 19 Oct 2026
+**Last updated:** 20 Oct 2026
 
 | Area | Status |
 |---|---|
 | Spec | ✅ v1.1 written (code map + build guide), awaiting team review |
 | Team size | ✅ 3 people is fine (confirmed by Onur 19 Oct); Onur takes the project in one of the two courses only. No TA email needed |
 | GitHub repo | ✅ created 16 Oct, public, `develop` default; Fatmaaa-Demir and ZeynepUygun05 accepted their invites |
-| Branch protection | ✅ S0-01 done 19 Oct: `main` and `develop` need a PR + 1 approval; squash and merge-commit only; branches deleted on merge. Required CI checks get added in S0-05. Teammates still need to verify their git email (S0-01 step 1) |
+| Branch protection | ✅ S0-01 done 19 Oct: `main` and `develop` need a PR (no approval required, team decision 20 Oct); squash and merge-commit only; branches deleted on merge. Required CI checks get added in S0-05 |
 | Backlog in GitHub Projects | ⏳ |
-| Django skeleton + Docker + CI | ⏳ |
+| Django skeleton + Docker + CI | ✅ skeleton (S0-03) merged 20 Oct, incl. `compose.yml`; ⏳ CI (S0-05) |
 | Staging deployment | ⏳ (Sprint 2) |
 | Baseline features | ⏳ (Sprints 1–3) |
 | Tier 1 features | ⏳ (Sprints 4–7) |
@@ -3149,8 +3149,8 @@ body:
     attributes:
       label: Acceptance criteria
       value: |
-        - [ ] 
-        - [ ] 
+        - [ ]
+        - [ ]
     validations:
       required: true
   - type: textarea
