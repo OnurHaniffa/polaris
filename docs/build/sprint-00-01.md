@@ -1241,7 +1241,7 @@ Every pull request is linted, tested on a real PostgreSQL, checked for missing m
     env:
       DJANGO_SETTINGS_MODULE: config.settings.prod
       SECRET_KEY: ci-only-but-long-enough-to-pass-the-deploy-check-0123456789abcdef
-      DATABASE_URL: sqlite:///tmp/check.db
+      DATABASE_URL: sqlite:////tmp/check.db
       REDIS_URL: redis://localhost:6379/0
       ALLOWED_HOSTS: example.com
       CSRF_TRUSTED_ORIGINS: https://example.com

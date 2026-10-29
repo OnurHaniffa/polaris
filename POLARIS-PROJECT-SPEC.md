@@ -48,22 +48,23 @@ Read Part 0 every time you sit down to work. Read Parts 1–3 once, carefully, b
 
 > Update this block at the end of every sprint review. It is the first thing a teammate reads.
 
-**Current sprint:** Sprint 0 (16 – 18 Oct, running late; finishing 19–20 Oct): setup
-**Last updated:** 20 Oct 2026
+**Current sprint:** Sprint 2 (26 Oct – 1 Nov): instructor flows
+**Last updated:** 29 Oct 2026
 
 | Area | Status |
 |---|---|
-| Spec | ✅ v1.1 written (code map + build guide), awaiting team review |
+| Spec | ✅ v1.1 written (code map + build guide). Decisions D1–D15 still need team sign-off (S0-06) |
 | Team size | ✅ 3 people is fine (confirmed by Onur 19 Oct); Onur takes the project in one of the two courses only. No TA email needed |
 | GitHub repo | ✅ created 16 Oct, public, `develop` default; Fatmaaa-Demir and ZeynepUygun05 accepted their invites |
-| Branch protection | ✅ S0-01 done 19 Oct: `main` and `develop` need a PR (no approval required, team decision 20 Oct); squash and merge-commit only; branches deleted on merge. Required CI checks get added in S0-05 |
-| Backlog in GitHub Projects | ⏳ |
-| Django skeleton + Docker + CI | ✅ skeleton (S0-03) merged 20 Oct, incl. `compose.yml`; ⏳ CI (S0-05) |
-| Staging deployment | ⏳ (Sprint 2) |
-| Baseline features | ⏳ (Sprints 1–3) |
+| Branch protection | ✅ `main` and `develop` need a PR (no approval required, team decision 20 Oct) and green `lint`, `test`, `deploy-check` (from 29 Oct); squash and merge-commit only |
+| Backlog in GitHub Projects | ⏳ S0-02 (needs the `project` scope on Onur's `gh` login) |
+| Django skeleton + Docker + CI | ✅ S0-03 skeleton 20 Oct, `compose.yml`; ✅ S0-05 CI 29 Oct (#11) |
+| Sprint 1 | ✅ models, PO migration, engine, loaders, `seed_demo` (#4, Zeynep, 23 Oct); admin, factories, all Sprint 1 tests, S1-09 design system and login page, `seed_demo` fix (#6–#10, 29 Oct). 245 tests, 94% coverage |
+| Sprint 2 | 🔄 S2-02 permissions + permission matrix (#5, Fatma, 28 Oct). Next: S2-01 login/home, S2-03 head screens |
+| Staging deployment | ⏳ (Sprint 2, S2-08) |
 | Tier 1 features | ⏳ (Sprints 4–7) |
 
-**Blockers:** none yet.
+**Blockers:** none.
 
 ## 0.2 Decisions to review before Sprint 1
 
@@ -3340,7 +3341,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3
       - run: uv sync --locked
       - name: Ruff lint
         run: uv run ruff check --output-format=github .
@@ -3373,7 +3374,7 @@ jobs:
       SECRET_KEY: ci-not-a-secret
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3
       - run: uv sync --locked
       - name: Django system checks
         run: uv run python manage.py check
@@ -3397,14 +3398,14 @@ jobs:
     env:
       DJANGO_SETTINGS_MODULE: config.settings.prod
       SECRET_KEY: ci-only-but-long-enough-to-pass-the-deploy-check-0123456789abcdef
-      DATABASE_URL: sqlite:///tmp/check.db
+      DATABASE_URL: sqlite:////tmp/check.db
       REDIS_URL: redis://localhost:6379/0
       ALLOWED_HOSTS: example.com
       CSRF_TRUSTED_ORIGINS: https://example.com
       EMAIL_URL: smtp+tls://ci:ci@smtp.example.com:587   # a dev backend here fails check --deploy (mail.E001)
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3
       - run: uv sync --locked --no-dev
       - name: Production settings pass Django's deployment checklist
         run: uv run --no-dev python manage.py check --deploy --fail-level WARNING
