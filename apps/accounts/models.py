@@ -38,6 +38,8 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.get_full_name()} <{self.email}>"
+
+
 class ProgramMembership(models.Model):
     class Role(models.TextChoices):
         STUDENT = "student", "Student"

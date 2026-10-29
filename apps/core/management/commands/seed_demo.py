@@ -171,7 +171,7 @@ class Command(BaseCommand):
     def handle(self, *args, reset, small, allow_production, **options):
         if not settings.DEBUG and not allow_production:
             raise CommandError("Refusing to seed with DEBUG=False.")
-            self.rng = random.Random(SEED) # noqa: S311
+            self.rng = random.Random(SEED)  # noqa: S311
 
         with transaction.atomic():
             if reset:

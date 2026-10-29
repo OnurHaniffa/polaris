@@ -1,4 +1,5 @@
 """Read-only queries for the catalog. Lower layers handle PO-set resolution (spec §4.8)."""
+
 from dataclasses import dataclass
 
 from django.db.models import Count, Q
@@ -102,8 +103,6 @@ def visible_enrollments(user, offering, *, include_dropped=False):
     return qs.order_by("student__student_number", "student__last_name")
 
 
-
-
 def offerings_visible_to(user):
     """Compatibility alias used by existing account selector tests."""
     return offerings_for_user(user)
@@ -130,9 +129,7 @@ def setup_status(offering):
         published=Count("pk", filter=Q(published_at__isnull=False)),
     )
     has_los = LearningOutcome.objects.filter(offering=offering).exists()
-    has_assessment_lo = AssessmentLOWeight.objects.filter(
-        assessment__offering=offering
-    ).exists()
+    has_assessment_lo = AssessmentLOWeight.objects.filter(assessment__offering=offering).exists()
     has_lo_po = LOPOWeight.objects.filter(learning_outcome__offering=offering).exists()
     has_students = Enrollment.objects.filter(
         offering=offering, status=Enrollment.Status.ENROLLED

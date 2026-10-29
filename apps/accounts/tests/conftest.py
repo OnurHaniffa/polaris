@@ -152,7 +152,5 @@ def actors(
 def _plain_staticfiles(settings):
     settings.STORAGES = {
         **settings.STORAGES,
-        "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
-        },
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
     }
