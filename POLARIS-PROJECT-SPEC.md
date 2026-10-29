@@ -3340,7 +3340,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3
       - run: uv sync --locked
       - name: Ruff lint
         run: uv run ruff check --output-format=github .
@@ -3373,7 +3373,7 @@ jobs:
       SECRET_KEY: ci-not-a-secret
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3
       - run: uv sync --locked
       - name: Django system checks
         run: uv run python manage.py check
@@ -3404,7 +3404,7 @@ jobs:
       EMAIL_URL: smtp+tls://ci:ci@smtp.example.com:587   # a dev backend here fails check --deploy (mail.E001)
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3
       - run: uv sync --locked --no-dev
       - name: Production settings pass Django's deployment checklist
         run: uv run --no-dev python manage.py check --deploy --fail-level WARNING
