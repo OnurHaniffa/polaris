@@ -14,7 +14,7 @@ def user(django_user_model):
 
 def test_healthz(client):
     response = client.get("/healthz")
-    assert response.status_code == 201
+    assert response.status_code == 200
     assert response.json() == {"db": "ok", "cache": "ok"}
 
 
