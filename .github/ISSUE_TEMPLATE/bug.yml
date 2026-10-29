@@ -1,0 +1,33 @@
+name: Bug
+description: Something on staging or production doesn't work as the spec says
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      placeholder: On /offerings/7/grades/ typing 105 saved the grade instead of showing an error.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should happen (link the spec section or AC)
+      placeholder: "B6 AC1: Typing 105 in a column with max 100 shows 'Max for Midterm I is 100'."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1. Log in as …
+        2. Go to …
+        3.
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options: [Local, Staging, Production]
+    validations:
+      required: true
