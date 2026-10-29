@@ -1,0 +1,38 @@
+name: User story
+description: A feature from the user's point of view
+labels: ["story"]
+body:
+  - type: input
+    id: story_id
+    attributes:
+      label: Story ID (from the spec backlog)
+      placeholder: S2-04
+  - type: textarea
+    id: story
+    attributes:
+      label: User story
+      value: "As a <role>, I want <capability> so that <benefit>."
+    validations:
+      required: true
+  - type: textarea
+    id: ac
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Tasks
+      value: |
+        - [ ] Tests
+        - [ ] Implementation
+        - [ ] Blank + error states
+        - [ ] Spec updated if needed
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / links to spec sections
