@@ -48,7 +48,7 @@ Read Part 0 every time you sit down to work. Read Parts 1–3 once, carefully, b
 
 > Update this block at the end of every sprint review. It is the first thing a teammate reads.
 
-**Current sprint:** Sprint 2 (26 Oct – 1 Nov): baseline instructor features
+**Current sprint:** Sprint 2 (26 Oct – 1 Nov): instructor flows
 **Last updated:** 29 Oct 2026
 
 | Area | Status |
