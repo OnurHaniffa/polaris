@@ -48,3 +48,15 @@ def test_wrong_password_is_rejected(client, user):
     response = client.post("/login/", {"username": user.email, "password": "nope"})
     assert response.status_code == 200
     assert not response.wsgi_request.user.is_authenticated
+
+
+def test_403_page_uses_the_layout_and_shows_the_reason(rf):
+    from django.contrib.auth.models import AnonymousUser
+    from django.template.loader import render_to_string
+
+    request = rf.get("/")
+    request.user = AnonymousUser()
+    html = render_to_string("403.html", {"exception": "Fall 2025 is closed."}, request=request)
+    assert "Fall 2025 is closed." in html
+    assert "<title>Can't change this · POlaris</title>" in html
+    assert "polaris.css" in html  # rendered inside base.html
