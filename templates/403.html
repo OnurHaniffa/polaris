@@ -1,36 +1,17 @@
+{% extends "base.html" %}
 {% comment %}
   The one 403 POlaris uses (spec 3.4 rule 3): you can see the object but may not change it
   right now. require_offering_access raises PermissionDenied(message) and Django passes the
-  message here as the variable "exception". This page is standalone for now. Once a shared
-  base template exists, make it extend that template.
-{% endcomment %}<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Can't change this · POlaris</title>
-  <style>
-    body { font-family: system-ui, sans-serif; margin: 0; background: #f8f9fa; color: #212529; }
-    main { max-width: 40rem; margin: 4rem auto; padding: 0 1.25rem; }
-    h1 { font-size: 1.5rem; }
-    .lead { font-size: 1.15rem; }
-    .muted { color: #6c757d; }
-    a.btn { display: inline-block; padding: .5rem 1rem; background: #0d6efd; color: #fff;
-            border-radius: .375rem; text-decoration: none; }
-    @media (prefers-color-scheme: dark) {
-      body { background: #212529; color: #f8f9fa; }
-      .muted { color: #adb5bd; }
-    }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>You can't change this right now</h1>
-    <p class="lead">
-      {% if exception %}{{ exception }}{% else %}You can look at this page, but you aren't allowed to change it.{% endif %}
-    </p>
-    <p class="muted">Everything is still visible. Only changes are blocked.</p>
-    <a class="btn" href="javascript:history.back()">Go back</a>
-  </main>
-</body>
-</html>
+  message here as the variable "exception".
+{% endcomment %}
+{% block title %}Can't change this{% endblock %}
+{% block content %}
+<div class="mx-auto py-5" style="max-width: 40rem;">
+  <h1 class="h3">You can't change this right now</h1>
+  <p class="lead">
+    {% if exception %}{{ exception }}{% else %}You can look at this page, but you aren't allowed to change it.{% endif %}
+  </p>
+  <p class="text-body-secondary">Everything is still visible. Only changes are blocked.</p>
+  <a class="btn btn-primary" href="javascript:history.back()">Go back</a>
+</div>
+{% endblock %}
