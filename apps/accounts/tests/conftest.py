@@ -12,12 +12,6 @@ Role = ProgramMembership.Role
 User = get_user_model()
 
 
-@pytest.fixture(autouse=True)
-def _login_url(settings):
-    # TEMPORARY: "accounts:login" does not exist until S2-01. Delete this fixture after S2-01.
-    settings.LOGIN_URL = "/accounts/login/"
-
-
 def make_user(name, **extra):
     return User.objects.create_user(
         email=f"{name}@test.local",

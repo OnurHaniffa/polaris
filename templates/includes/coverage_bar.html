@@ -1,0 +1,10 @@
+{% load polaris %}{% comment %}
+  Usage: {% include "includes/coverage_bar.html" with coverage=node.coverage only %}
+  coverage is a 0..1 Decimal (policy P5): how much of the inbound weight had a grade.
+{% endcomment %}<div class="pl-coverage" title="Coverage {{ coverage|pct }}: share of the weight with a published grade">
+  <div class="progress" role="progressbar" aria-label="Coverage" aria-valuemin="0" aria-valuemax="100"
+       aria-valuenow="{{ coverage|pct|cut:'%'|cut:'—' }}">
+    <div class="progress-bar" style="width: {{ coverage|pct|cut:'—' }}"></div>
+  </div>
+  <span class="pl-coverage-label">{{ coverage|pct }}</span>
+</div>

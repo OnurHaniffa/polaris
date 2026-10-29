@@ -1,0 +1,4 @@
+{% load polaris %}{% comment %}
+  Usage: {% include "includes/score_badge.html" with value=po.score threshold=program.attainment_threshold only %}
+  Colour AND a text label, so the state is clear without colour (accessibility, §8.2).
+{% endcomment %}{% if value is None %}<span class="pl-badge pl-badge-none" title="No evidence yet">— <span class="visually-hidden">no evidence yet</span></span>{% elif threshold is not None and value >= threshold %}<span class="pl-badge pl-badge-ok">✓ {{ value|score }}<span class="visually-hidden"> attained</span></span>{% elif threshold is not None %}<span class="pl-badge pl-badge-low">↓ {{ value|score }}<span class="visually-hidden"> below threshold</span></span>{% else %}<span class="pl-badge">{{ value|score }}</span>{% endif %}
