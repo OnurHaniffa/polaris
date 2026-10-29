@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load polaris %}
+{% block title %}Style guide{% endblock %}
+{% block content %}
+  <h1 class="h3 mb-4">Style guide</h1>
+
+  <section class="mb-5">
+    <h2 class="h5">The |score filter (one decimal, half-up, — for none)</h2>
+    <table class="table table-sm w-auto pl-num">
+      <thead><tr><th scope="col">Raw value</th><th scope="col">|score</th><th scope="col">Badge (threshold {{ threshold|score }})</th></tr></thead>
+      <tbody>
+        {% for value in examples %}
+          <tr>
+            <td>{{ value|default_if_none:"None" }}</td>
+            <td>{{ value|score }}</td>
+            <td>{% include "includes/score_badge.html" with value=value threshold=threshold only %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="mb-5">
+    <h2 class="h5">Coverage bar</h2>
+    <div style="max-width: 16rem">
+      {% include "includes/coverage_bar.html" with coverage="0.2857" only %}
+      {% include "includes/coverage_bar.html" with coverage="1" only %}
+    </div>
+  </section>
+
+  <section class="mb-5">
+    <h2 class="h5">State colours</h2>
+    <ul class="list-unstyled d-flex flex-wrap gap-2">
+      <li class="pl-chip pl-chip-draft">● Draft / unpublished</li>
+      <li class="pl-chip pl-chip-ai">AI-suggested</li>
+      <li class="pl-chip pl-chip-derived">Derived</li>
+      <li class="pl-chip pl-chip-document">From document</li>
+    </ul>
+  </section>
+
+  <section class="mb-5">
+    <h2 class="h5">Empty state</h2>
+    {% include "includes/empty_state.html" with title="No assessments yet" message="Add the exams and projects you grade." action_url="#" action_label="Add an assessment" only %}
+  </section>
+{% endblock %}

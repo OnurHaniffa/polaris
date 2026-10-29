@@ -1,0 +1,9 @@
+{% comment %}
+  Usage: {% include "includes/empty_state.html" with title="No learning outcomes yet" message="Add your first LO, or upload your syllabus and we'll read them for you." action_url=url action_label="Add an LO" only %}
+  Getting Real, ch. 9 "The Blank Slate": an empty screen says what to do first.
+{% endcomment %}<div class="pl-empty text-center">
+  <div class="pl-empty-mark" aria-hidden="true">✦</div>
+  <h2 class="h5">{{ title }}</h2>
+  {% if message %}<p class="text-body-secondary mb-3">{{ message }}</p>{% endif %}
+  {% if action_url %}<a class="btn btn-primary" href="{{ action_url }}">{{ action_label }}</a>{% endif %}
+</div>

@@ -79,8 +79,16 @@ class Row:
         return f"{self.name}[{self.scenario}]" if self.scenario else self.name
 
 
+# S1-09 pages. "home" is a placeholder until S2-01 makes it the role-based redirect.
+LOGGED_IN = {p: (302 if p == "anonymous" else 200) for p in PERSONAS}
+NOWHERE = {p: 404 for p in PERSONAS}  # the style guide only exists while DEBUG is on
+
 ROWS: list[Row] = [
     Row("healthz", "GET", PUBLIC),
+    Row("home", "GET", LOGGED_IN),
+    Row("styleguide", "GET", NOWHERE),
+    Row("accounts:login", "GET", PUBLIC),
+    Row("accounts:logout", "POST", {p: 302 for p in PERSONAS}),
 ]
 
 

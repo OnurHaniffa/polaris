@@ -1,0 +1,88 @@
+/* POlaris design tokens (spec §8.2). Bootstrap does the heavy lifting; this file only adds
+   our colours and the few components Bootstrap lacks. Use the variables, never raw hex. */
+
+:root {
+  --pl-primary: #1f3a68;         /* navy: actions */
+  --pl-accent: #e0a100;          /* amber: highlights */
+  --pl-attained: #1e7b4a;        /* green: score >= threshold */
+  --pl-below: #b42318;           /* red: score < threshold */
+  --pl-none: #6c737f;            /* grey: no evidence */
+  --pl-draft: #c27c00;           /* amber dot: unpublished change */
+  --pl-ai: #6941c6;              /* violet: AI-suggested */
+  --pl-derived: #0e7c86;         /* teal: derived by rule */
+  --pl-document: #1d5fd1;        /* blue: read from the document */
+  --pl-surface: #ffffff;
+  --pl-border: #d8dde6;
+
+  --bs-primary: var(--pl-primary);
+  --bs-primary-rgb: 31, 58, 104;
+  --bs-link-color: var(--pl-primary);
+  --bs-link-color-rgb: 31, 58, 104;
+}
+
+[data-bs-theme="dark"] {
+  --pl-primary: #8fb3ff;
+  --pl-accent: #f5c04a;
+  --pl-attained: #5fd39a;
+  --pl-below: #ff8a80;
+  --pl-none: #a3abb8;
+  --pl-draft: #f5c04a;
+  --pl-ai: #b9a3ff;
+  --pl-derived: #5fd4de;
+  --pl-document: #8fb3ff;
+  --pl-surface: #1b1f27;
+  --pl-border: #343b48;
+
+  --bs-primary-rgb: 143, 179, 255;
+  --bs-link-color: var(--pl-primary);
+  --bs-link-color-rgb: 143, 179, 255;
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--pl-primary);
+  --bs-btn-border-color: var(--pl-primary);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--pl-primary) 85%, black);
+  --bs-btn-hover-border-color: color-mix(in srgb, var(--pl-primary) 85%, black);
+}
+[data-bs-theme="dark"] .btn-primary { --bs-btn-color: #10141b; }
+
+/* Digits line up in every score column */
+.pl-num, .pl-num td, .pl-badge, .pl-coverage-label { font-variant-numeric: tabular-nums; }
+
+.pl-navbar { border-bottom: 1px solid var(--pl-border); background: var(--pl-surface); }
+.pl-accent { color: var(--pl-accent); }
+
+/* score_badge */
+.pl-badge {
+  display: inline-block; min-width: 4.5rem; padding: .15rem .5rem; border-radius: .375rem;
+  font-weight: 600; text-align: right; border: 1px solid currentColor;
+}
+.pl-badge-ok { color: var(--pl-attained); }
+.pl-badge-low { color: var(--pl-below); }
+.pl-badge-none { color: var(--pl-none); text-align: center; }
+
+/* coverage_bar */
+.pl-coverage { display: flex; align-items: center; gap: .5rem; }
+.pl-coverage .progress { flex: 1; height: .5rem; }
+.pl-coverage .progress-bar { background: var(--pl-primary); }
+.pl-coverage-label { font-size: .8rem; color: var(--pl-none); min-width: 2.75rem; text-align: right; }
+
+/* state chips (grids, wizard) */
+.pl-chip { padding: .1rem .5rem; border-radius: 1rem; font-size: .85rem; border: 1px solid currentColor; }
+.pl-chip-draft { color: var(--pl-draft); }
+.pl-chip-ai { color: var(--pl-ai); }
+.pl-chip-derived { color: var(--pl-derived); }
+.pl-chip-document { color: var(--pl-document); }
+
+/* empty_state */
+.pl-empty { padding: 3rem 1rem; border: 1px dashed var(--pl-border); border-radius: .75rem; }
+.pl-empty-mark { font-size: 2rem; color: var(--pl-accent); }
+
+/* toasts: a coloured edge per message level */
+.pl-toast { border-left: 4px solid var(--pl-primary); }
+.pl-toast-success { border-left-color: var(--pl-attained); }
+.pl-toast-error { border-left-color: var(--pl-below); }
+.pl-toast-warning { border-left-color: var(--pl-draft); }
+
+/* keyboard focus must always be visible */
+:focus-visible { outline: 3px solid var(--pl-accent); outline-offset: 2px; }

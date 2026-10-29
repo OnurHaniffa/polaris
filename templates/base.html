@@ -1,0 +1,76 @@
+{% load static %}<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}POlaris{% endblock %} · POlaris</title>
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/polaris.css' %}">
+  <script>
+    // Set the theme before the page paints, so dark-mode users never see a white flash.
+    (function () {
+      var saved = null;
+      try { saved = localStorage.getItem("pl-theme"); } catch (e) {}
+      var dark = saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.setAttribute("data-bs-theme", dark ? "dark" : "light");
+    })();
+  </script>
+  {% block head %}{% endblock %}
+</head>
+{# Every HTMX request sends the CSRF token in a header, so hx-post just works (§8.5). #}
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <a class="visually-hidden-focusable" href="#main">Skip to content</a>
+
+  <nav class="navbar navbar-expand-md pl-navbar">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-semibold" href="{% url 'home' %}">PO<span class="pl-accent">laris</span></a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#pl-nav"
+              aria-controls="pl-nav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="pl-nav">
+        {# S2-01 fills this block with role-aware links from the navigation context processor. #}
+        <ul class="navbar-nav me-auto">{% block nav %}{% endblock %}</ul>
+        <ul class="navbar-nav align-items-md-center gap-2">
+          <li class="nav-item">
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-pl-theme-toggle
+                    aria-label="Switch between light and dark mode">◐ Theme</button>
+          </li>
+          {% if user.is_authenticated %}
+            <li class="nav-item"><span class="navbar-text small">{{ user.get_full_name|default:user.email }}</span></li>
+            {% if user.is_superuser %}
+              <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
+            {% endif %}
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main" class="container-xxl py-4">
+    {% block breadcrumbs %}{% endblock %}
+    {% block content %}{% endblock %}
+  </main>
+
+  {# Django messages become toasts. aria-live makes screen readers announce them. #}
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" aria-live="polite" aria-atomic="true" id="pl-toasts">
+    {% for message in messages %}
+      {% include "includes/toast.html" with message=message only %}
+    {% endfor %}
+  </div>
+
+  {# One shared modal. HTMX loads confirmation bodies into #modal-content (§8.5 "Modal content"). #}
+  <div class="modal fade" id="modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content" id="modal-content"></div>
+    </div>
+  </div>
+
+  <script src="{% static 'vendor/bootstrap.bundle.min.js' %}"></script>
+  <script src="{% static 'vendor/htmx.min.js' %}"></script>
+  {# Chart.js on every page for now. S7-07 makes it opt-in per page to speed up the rest. #}
+  {% block chart_js %}<script src="{% static 'vendor/chart.umd.min.js' %}"></script>{% endblock %}
+  <script src="{% static 'js/polaris.js' %}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
