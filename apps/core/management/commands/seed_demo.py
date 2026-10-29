@@ -170,8 +170,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, reset, small, allow_production, **options):
         if not settings.DEBUG and not allow_production:
-            raise CommandError("Refusing to seed with DEBUG=False.")
-            self.rng = random.Random(SEED)  # noqa: S311
+            raise CommandError(
+                "Refusing to seed with DEBUG=False: demo accounts have a known password. "
+                "Pass --allow-production if you really mean it."
+            )
+        self.rng = random.Random(SEED)  # noqa: S311
 
         with transaction.atomic():
             if reset:
@@ -346,6 +349,9 @@ class Command(BaseCommand):
     def report(self):
         self.stdout.write(self.style.SUCCESS("Demo data ready."))
         self.stdout.write(f"Every demo account's password: {DEMO_PASSWORD}")
+        self.stdout.write("  Head (also teaches CSE 311): deniz.kara@acibadem.edu.tr")
+        self.stdout.write("  Instructors: can.aydin@, ayse.demir@, mehmet.sahin@acibadem.edu.tr")
+        self.stdout.write(f"  Student Elif (slide example): {ELIF['email']}")
         self.stdout.write(
             f"  {User.objects.filter(memberships__role='student').count()} students, "
             f"{CourseOffering.objects.count()} offerings, {Grade.objects.count()} grades"
