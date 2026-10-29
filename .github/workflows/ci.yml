@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - run: uv sync --locked
+      - name: Ruff lint
+        run: uv run ruff check --output-format=github .
+      - name: Ruff format
+        run: uv run ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: polaris
+          POSTGRES_PASSWORD: polaris
+          POSTGRES_DB: polaris
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U polaris"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      DATABASE_URL: postgres://polaris:polaris@localhost:5432/polaris
+      REDIS_URL: redis://localhost:6379/0
+      SECRET_KEY: ci-not-a-secret
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - run: uv sync --locked
+      - name: Django system checks
+        run: uv run python manage.py check
+      - name: Migrations are committed
+        run: uv run python manage.py makemigrations --check --dry-run
+      - name: Tests with coverage
+        run: uv run pytest --cov --cov-report=xml --cov-report=term-missing --junitxml=junit.xml
+      - name: Coverage summary on the run page
+        if: always()
+        run: uv run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-reports
+          path: |
+            coverage.xml
+            junit.xml
+
+  deploy-check:
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      SECRET_KEY: ci-only-but-long-enough-to-pass-the-deploy-check-0123456789abcdef
+      DATABASE_URL: sqlite:///tmp/check.db
+      REDIS_URL: redis://localhost:6379/0
+      ALLOWED_HOSTS: example.com
+      CSRF_TRUSTED_ORIGINS: https://example.com
+      EMAIL_URL: smtp+tls://ci:ci@smtp.example.com:587   # a dev backend here fails check --deploy (mail.E001)
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - run: uv sync --locked --no-dev
+      - name: Production settings pass Django's deployment checklist
+        run: uv run --no-dev python manage.py check --deploy --fail-level WARNING
+
+  # docker-build returns in S2-08 together with the Dockerfile (spec §10.5)
