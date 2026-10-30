@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load polaris %}
+
+{% block title %}Grades · {{ offering.course.code }}{% endblock %}
+
+{% partialdef col_status %}
+<span id="col-status-{{ column.assessment.id }}" class="small d-block"
+      {% if oob %}hx-swap-oob="true"{% endif %}>
+  {% if column.is_published %}
+    <span class="badge text-bg-success">Published</span>
+  {% else %}
+    <span class="badge text-bg-secondary">Draft</span>
+  {% endif %}
+  {% if column.unpublished %}
+    <span class="badge text-bg-warning" title="Changes students can't see yet">
+      {{ column.unpublished }} unpublished
+    </span>
+  {% endif %}
+</span>
+{% endpartialdef %}
+
+{% partialdef col_head %}
+<th scope="col" class="text-end align-bottom">
+  <div class="fw-semibold">{{ column.assessment.name }}</div>
+  <div class="text-body-secondary small">max {{ column.assessment.max_score|weight }}</div>
+  {% partial col_status %}
+</th>
+{% endpartialdef %}
+
+{% partialdef cell %}
+<td id="cell-{{ cell.assessment.id }}-{{ cell.enrollment.id }}"
+    class="grade-cell{% if cell.has_unpublished_change %} has-draft{% endif %}{% if cell.is_excused %} is-excused{% endif %}">
+  <input type="text" inputmode="decimal" autocomplete="off" spellcheck="false"
+         id="g-{{ cell.assessment.id }}-{{ cell.enrollment.id }}"
+         name="value"
+         class="form-control form-control-sm grade-input{% if error %} is-invalid{% elif saved %} is-valid{% endif %}"
+         value="{% if error %}{{ raw }}{% else %}{{ cell.input_value }}{% endif %}"
+         aria-label="{{ cell.assessment.name }}, {{ cell.enrollment.student.get_full_name }}"
+         {% if error %}aria-invalid="true" aria-describedby="err-{{ cell.assessment.id }}-{{ cell.enrollment.id }}"{% endif %}
+         {% if not perms_for.can_edit %}disabled{% endif %}
+         hx-post="{% url 'grading:cell' offering_id=offering.id assessment_id=cell.assessment.id enrollment_id=cell.enrollment.id %}"
+         hx-trigger="change"
+         hx-target="closest td"
+         hx-swap="outerHTML">
+  {% if error %}
+    <div class="invalid-feedback" id="err-{{ cell.assessment.id }}-{{ cell.enrollment.id }}">{{ error }}</div>
+  {% endif %}
+  {% if cell.has_unpublished_change %}<span class="visually-hidden">Unpublished change</span>{% endif %}
+</td>
+{% endpartialdef %}
+
+{% block content %}
+{% include "includes/offering_header.html" with offering=offering tabs=tabs perms_for=perms_for only %}
+<p class="text-body-secondary mb-3">{{ sheet.rows|length }} student{{ sheet.rows|length|pluralize }}</p>
+
+{% if perms_for.is_closed %}
+  <div class="alert alert-secondary">This term is closed. Grades are read-only.</div>
+{% endif %}
+
+{% if not sheet.columns %}
+  {% url 'outcomes:setup' offering_id=offering.id as setup_url %}
+  {% include "includes/empty_state.html" with title="No assessments yet" message="Add your midterm, final and other assessments first. Then come back here to enter grades." action_url=setup_url action_label="Set up assessments" only %}
+{% elif not sheet.rows %}
+  {% include "includes/empty_state.html" with title="No students enrolled" message="The department head adds students to this course. Ask them, or check back later." only %}
+{% else %}
+  <p class="text-body-secondary small mb-2">
+    Type a score and press <kbd>Enter</kbd>. Use <kbd>EX</kbd> for excused. Arrow keys move between cells.
+    Saved values are <strong>drafts</strong>: students see them only after you publish the column.
+  </p>
+  <div class="grade-sheet-wrap border rounded">
+    <table class="table table-sm align-middle mb-0 grade-sheet">
+      <thead>
+        <tr>
+          <th scope="col">Student</th>
+          {% for column in sheet.columns %}{% partial col_head %}{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in sheet.rows %}
+          <tr>
+            <th scope="row" class="text-nowrap">
+              <span class="font-monospace small text-body-secondary">{{ row.enrollment.student.student_number }}</span>
+              {{ row.enrollment.student.last_name }}, {{ row.enrollment.student.first_name }}
+            </th>
+            {% for cell in row.cells %}{% partial cell %}{% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+{% endblock %}

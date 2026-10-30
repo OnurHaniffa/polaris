@@ -116,3 +116,68 @@
     initTooltips();
   }
 })();
+
+(function gradeGrid() {
+  "use strict";
+
+  function inputAt(table, rowIndex, colIndex) {
+    const row = table.tBodies[0] && table.tBodies[0].rows[rowIndex];
+    if (!row) return null;
+    const cell = row.cells[colIndex];
+    return cell ? cell.querySelector("input.grade-input:not([disabled])") : null;
+  }
+
+  function moveTo(input) {
+    if (!input) return false;
+    input.focus();
+    input.select();
+    return true;
+  }
+
+  document.addEventListener("focusin", function (event) {
+    if (event.target.matches && event.target.matches("input.grade-input")) {
+      event.target.select();
+    }
+  });
+
+  document.addEventListener("keydown", function (event) {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || !input.classList.contains("grade-input")) return;
+
+    const td = input.closest("td");
+    const tr = td.closest("tr");
+    const table = tr.closest("table");
+    const row = tr.sectionRowIndex;
+    const col = td.cellIndex;
+    const len = input.value.length;
+    const allSelected = input.selectionStart === 0 && input.selectionEnd === len;
+
+    let target = null;
+    switch (event.key) {
+      case "Enter":
+        target = inputAt(table, event.shiftKey ? row - 1 : row + 1, col);
+        event.preventDefault();
+        if (!target) input.blur();          // last row: still save the cell
+        break;
+      case "ArrowDown":
+        target = inputAt(table, row + 1, col);
+        break;
+      case "ArrowUp":
+        target = inputAt(table, row - 1, col);
+        break;
+      case "ArrowLeft":
+        if (allSelected || input.selectionStart === 0) target = inputAt(table, row, col - 1);
+        break;
+      case "ArrowRight":
+        if (allSelected || input.selectionEnd === len) target = inputAt(table, row, col + 1);
+        break;
+      case "Escape":
+        input.value = input.defaultValue;   // undo typing in this cell, nothing is sent
+        input.select();
+        return;
+      default:
+        return;
+    }
+    if (moveTo(target)) event.preventDefault();
+  });
+})();

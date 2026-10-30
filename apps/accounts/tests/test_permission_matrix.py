@@ -159,6 +159,17 @@ def _with_assessment(attr: str) -> Callable[[World], dict]:
     return kwargs
 
 
+def _grade_cell(attr: str) -> Callable[[World], dict]:
+    """One grade-sheet cell: the world's student in that offering (S2-06)."""
+
+    def kwargs(world):
+        base = _with_assessment(attr)(world)
+        enrollment = getattr(world, attr).enrollments.get(student=world.users["student"])
+        return {**base, "enrollment_id": enrollment.pk}
+
+    return kwargs
+
+
 def offering_rows(name, method, kwargs_for, open_expect=WRITE_OPEN, closed_expect=WRITE_CLOSED):
     """The same URL on the open and on the closed offering."""
     return [
@@ -222,6 +233,9 @@ ROWS: list[Row] = [
     ),
     *offering_rows("outcomes:save_lo_po", "POST", offering_kwargs, _status(WRITE_OPEN, 400)),
     *offering_rows("outcomes:validate_cell", "POST", offering_kwargs, _status(WRITE_OPEN, 400)),
+    # S2-06: grade sheet. An empty POST is a blank cell: nothing saved, the cell comes back.
+    *offering_rows("grading:sheet", "GET", offering_kwargs, READ_OFFERING, READ_OFFERING),
+    *offering_rows("grading:cell", "POST", _grade_cell),
 ]
 
 
