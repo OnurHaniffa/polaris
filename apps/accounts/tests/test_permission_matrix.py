@@ -50,9 +50,12 @@ from apps.accounts.tests.permission_world import (
     PERSONAS,
     PUBLIC,
     READ_OFFERING,
+    WRITE_CLOSED,
+    WRITE_OPEN,
     World,
     build_world,
 )
+from apps.outcomes.models import Assessment, LearningOutcome
 
 # Not ours: Django's admin has its own staff-only login (tested separately below), and
 # the debug toolbar only exists in DEBUG.
@@ -132,6 +135,38 @@ def _course(world):
     return {"course_id": world.open_offering.course_id}
 
 
+def _with_lo(attr: str) -> Callable[[World], dict]:
+    """An LO inside one of the world's offerings (sub-object URLs, S2-04)."""
+
+    def kwargs(world):
+        offering = getattr(world, attr)
+        lo, _ = LearningOutcome.objects.get_or_create(
+            offering=offering, number=1, defaults={"description": "Design schemas"}
+        )
+        return {"offering_id": offering.pk, "lo_id": lo.pk}
+
+    return kwargs
+
+
+def _with_assessment(attr: str) -> Callable[[World], dict]:
+    def kwargs(world):
+        offering = getattr(world, attr)
+        assessment, _ = Assessment.objects.get_or_create(
+            offering=offering, name="Midterm I", defaults={"kind": "midterm"}
+        )
+        return {"offering_id": offering.pk, "assessment_id": assessment.pk}
+
+    return kwargs
+
+
+def offering_rows(name, method, kwargs_for, open_expect=WRITE_OPEN, closed_expect=WRITE_CLOSED):
+    """The same URL on the open and on the closed offering."""
+    return [
+        Row(name, method, open_expect, kwargs_for("open_offering"), "open"),
+        Row(name, method, closed_expect, kwargs_for("closed_offering"), "closed"),
+    ]
+
+
 ROWS: list[Row] = [
     Row("healthz", "GET", PUBLIC),
     Row("home", "GET", HOME),
@@ -171,6 +206,15 @@ ROWS: list[Row] = [
     Row("catalog:po_set_activate", "POST", _status(CSE_OBJECT, 302), _cse_set),  # already active
     Row("catalog:po_edit", "GET", CSE_OBJECT, _cse_po),
     Row("catalog:po_delete", "GET", CSE_OBJECT, _cse_po),
+    # S2-04: course setup. Reads work in a closed term, writes answer 403 there.
+    *offering_rows("outcomes:setup", "GET", offering_kwargs, READ_OFFERING, READ_OFFERING),
+    *offering_rows("outcomes:lo_create", "GET", offering_kwargs),
+    *offering_rows("outcomes:lo_edit", "GET", _with_lo),
+    *offering_rows("outcomes:lo_delete", "GET", _with_lo),
+    *offering_rows("outcomes:lo_reorder", "POST", offering_kwargs, _status(WRITE_OPEN, 302)),
+    *offering_rows("outcomes:assessment_create", "GET", offering_kwargs),
+    *offering_rows("outcomes:assessment_edit", "GET", _with_assessment),
+    *offering_rows("outcomes:assessment_delete", "GET", _with_assessment),
 ]
 
 

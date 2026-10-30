@@ -2,11 +2,11 @@
 
 from dataclasses import dataclass
 
-from django.db.models import Count, Q
+from django.db.models import Count, Exists, OuterRef, Q
 
 from apps.accounts.models import ProgramMembership
 from apps.accounts.permissions import can_view_offering
-from apps.outcomes.models import Assessment, AssessmentLOWeight, LearningOutcome, LOPOWeight
+from apps.outcomes.models import AssessmentLOWeight, LearningOutcome, LOPOWeight
 
 from .models import CourseOffering, Enrollment, ProgramOutcomeSet
 
@@ -121,7 +121,10 @@ def offerings_visible_to(user):
 
 @dataclass(frozen=True)
 class SetupStatus:
-    """The setup checklist numbers for one offering (spec 4.8)."""
+    """The setup checklist numbers for one offering (spec 4.8).
+
+    `is_complete` follows the spec's definition (LOs, assessments and both kinds of weight);
+    the checklist card also shows students, so it counts five items in `done_count`."""
 
     has_los: bool
     has_assessments: bool
@@ -132,28 +135,59 @@ class SetupStatus:
     assessment_count: int
     is_complete: bool
 
+    TOTAL = 5  # items on the checklist card
 
-def setup_status(offering):
-    """Checklist state for an offering, in 5 queries."""
-    counts = Assessment.objects.filter(offering=offering).aggregate(
-        total=Count("pk"),
-        published=Count("pk", filter=Q(published_at__isnull=False)),
-    )
-    has_los = LearningOutcome.objects.filter(offering=offering).exists()
-    has_assessment_lo = AssessmentLOWeight.objects.filter(assessment__offering=offering).exists()
-    has_lo_po = LOPOWeight.objects.filter(learning_outcome__offering=offering).exists()
-    has_students = Enrollment.objects.filter(
-        offering=offering, status=Enrollment.Status.ENROLLED
-    ).exists()
+    @property
+    def done_count(self) -> int:
+        return sum(
+            [
+                self.has_los,
+                self.has_assessments,
+                self.has_assessment_lo,
+                self.has_lo_po,
+                self.has_students,
+            ]
+        )
 
-    has_assessments = counts["total"] > 0
-    return SetupStatus(
-        has_los=has_los,
-        has_assessments=has_assessments,
-        has_assessment_lo=has_assessment_lo,
-        has_lo_po=has_lo_po,
-        has_students=has_students,
-        published_count=counts["published"],
-        assessment_count=counts["total"],
-        is_complete=has_los and has_assessments and has_assessment_lo and has_lo_po,
+
+def setup_statuses(offering_ids) -> dict[int, SetupStatus]:
+    """SetupStatus for many offerings in one query. Missing ids are simply absent."""
+    rows = (
+        CourseOffering.objects.filter(pk__in=list(offering_ids))
+        .annotate(
+            x_los=Exists(LearningOutcome.objects.filter(offering=OuterRef("pk"))),
+            x_al=Exists(AssessmentLOWeight.objects.filter(assessment__offering=OuterRef("pk"))),
+            x_lp=Exists(LOPOWeight.objects.filter(learning_outcome__offering=OuterRef("pk"))),
+            x_students=Exists(
+                Enrollment.objects.filter(
+                    offering=OuterRef("pk"), status=Enrollment.Status.ENROLLED
+                )
+            ),
+            n_assessments=Count("assessments", distinct=True),
+            n_published=Count(
+                "assessments",
+                filter=Q(assessments__published_at__isnull=False),
+                distinct=True,
+            ),
+        )
+        .values("pk", "x_los", "x_al", "x_lp", "x_students", "n_assessments", "n_published")
     )
+    statuses = {}
+    for r in rows:
+        has_assessments = r["n_assessments"] > 0
+        statuses[r["pk"]] = SetupStatus(
+            has_los=r["x_los"],
+            has_assessments=has_assessments,
+            has_assessment_lo=r["x_al"],
+            has_lo_po=r["x_lp"],
+            has_students=r["x_students"],
+            published_count=r["n_published"],
+            assessment_count=r["n_assessments"],
+            is_complete=r["x_los"] and has_assessments and r["x_al"] and r["x_lp"],
+        )
+    return statuses
+
+
+def setup_status(offering) -> SetupStatus:
+    """Checklist state for one offering, in one query."""
+    return setup_statuses([offering.pk])[offering.pk]

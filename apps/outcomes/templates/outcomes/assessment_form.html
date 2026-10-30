@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{% if assessment %}Edit {{ assessment.name }}{% else %}New assessment{% endif %}{% endblock %}
+{% block content %}
+<div style="max-width: 48rem">
+  {% include "includes/offering_header.html" with offering=offering tabs=tabs perms_for=perms_for only %}
+  <h2 class="h4 mb-3">{% if assessment %}Edit {{ assessment.name }}{% else %}New assessment{% endif %}</h2>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="alert {% if needs_confirm %}alert-warning{% else %}alert-danger{% endif %}">{{ form.non_field_errors|join:" " }}</div>
+    {% endif %}
+    <div class="row g-3">
+      {% for field in form %}
+        {% if field.name != "confirm_max_change" %}
+          <div class="{% if field.name == 'name' %}col-md-8{% elif field.name == 'kind' %}col-md-4{% else %}col-md-4{% endif %}">
+            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="invalid-feedback d-block">{{ field.errors|join:" " }}</div>{% endif %}
+            {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% if needs_confirm %}
+      <div class="form-check mt-3">
+        {{ form.confirm_max_change }}
+        <label class="form-check-label" for="{{ form.confirm_max_change.id_for_label }}">{{ form.confirm_max_change.label }}</label>
+      </div>
+    {% endif %}
+    <div class="mt-4">
+      <button class="btn btn-primary">{% if assessment %}Save{% else %}Add assessment{% endif %}</button>
+      <a class="btn btn-link" href="{% url 'outcomes:setup' offering_id=offering.pk %}#assessments">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

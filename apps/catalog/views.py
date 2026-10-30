@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.accounts.decorators import require_offering_access, require_role
-from apps.accounts.permissions import head_program_or_404
+from apps.accounts.permissions import head_program_or_404, is_head
 from apps.accounts.services import get_or_create_student
 from apps.catalog import services
 from apps.catalog.forms import (
@@ -26,7 +26,12 @@ from apps.catalog.models import (
     ProgramOutcomeSet,
     Term,
 )
-from apps.catalog.selectors import teaching_offerings, visible_enrollments
+from apps.catalog.selectors import (
+    setup_status,
+    setup_statuses,
+    teaching_offerings,
+    visible_enrollments,
+)
 from apps.core.forms import add_service_errors
 from apps.core.navigation import offering_tabs, safe_reverse
 
@@ -35,6 +40,9 @@ from apps.core.navigation import offering_tabs, safe_reverse
 @require_role("instructor", "head")
 def teaching(request):
     offerings = list(teaching_offerings(request.user))
+    statuses = setup_statuses(o.pk for o in offerings)
+    for o in offerings:  # display-only attribute; templates can't index dicts
+        o.setup = statuses[o.pk]
     return render(
         request,
         "catalog/teaching.html",
@@ -56,6 +64,9 @@ def offering_home(request, offering, perms_for):
             "perms_for": perms_for,
             "tabs": offering_tabs(offering, "catalog:offering"),
             "student_count": visible_enrollments(request.user, offering).count(),
+            "status": setup_status(offering),
+            "can_manage_enrollment": request.user.is_superuser
+            or is_head(request.user, offering.course.program),
         },
     )
 

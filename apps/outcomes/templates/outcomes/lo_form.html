@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{% if lo %}Edit LO {{ lo.number }}{% else %}New learning outcome{% endif %}{% endblock %}
+{% block content %}
+<div style="max-width: 48rem">
+  {% include "includes/offering_header.html" with offering=offering tabs=tabs perms_for=perms_for only %}
+  <h2 class="h4 mb-3">{% if lo %}Edit LO {{ lo.number }}{% else %}New learning outcome{% endif %}</h2>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+    <div class="mb-3">
+      <label class="form-label" for="{{ form.description.id_for_label }}">Description</label>
+      {{ form.description }}
+      {% if form.description.errors %}<div class="invalid-feedback d-block">{{ form.description.errors|join:" " }}</div>{% endif %}
+      <div class="form-text">{{ form.description.help_text }}</div>
+    </div>
+    <button class="btn btn-primary">{% if lo %}Save{% else %}Add outcome{% endif %}</button>
+    <a class="btn btn-link" href="{% url 'outcomes:setup' offering_id=offering.pk %}#los">Cancel</a>
+  </form>
+</div>
+{% endblock %}

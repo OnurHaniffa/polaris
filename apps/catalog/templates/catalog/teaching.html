@@ -7,7 +7,7 @@
       <table class="table align-middle">
         <thead>
           <tr><th scope="col">Course</th><th scope="col">Term</th><th scope="col">Section</th>
-              <th scope="col" class="text-end">Students</th><th scope="col">Status</th></tr>
+              <th scope="col" class="text-end">Students</th><th scope="col">Status</th><th scope="col">Setup</th></tr>
         </thead>
         <tbody>
           {% for o in offerings %}
@@ -20,6 +20,9 @@
                 {% if o.term.status == "closed" %}<span class="badge text-bg-secondary">🔒 Closed</span>
                 {% elif o.term.status == "planned" %}<span class="badge text-bg-info">Planned</span>
                 {% else %}<span class="badge text-bg-success">Open</span>{% endif %}
+              </td>
+              <td>
+                <span class="small pl-num{% if o.setup.is_complete %} text-success{% endif %}">{{ o.setup.done_count }}/5</span>
               </td>
             </tr>
           {% endfor %}

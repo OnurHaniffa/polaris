@@ -10,6 +10,7 @@ urlpatterns = [
     path("styleguide/", core_views.styleguide, name="styleguide"),
     path("", include("apps.accounts.urls")),
     path("", include("apps.catalog.urls")),
+    path("", include("apps.outcomes.urls")),
     path("admin/", admin.site.urls),
 ]
 

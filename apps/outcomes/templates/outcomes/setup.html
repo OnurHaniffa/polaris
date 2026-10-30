@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% load polaris %}
+{% block title %}Setup · {{ offering.course.code }}{% endblock %}
+{% block content %}
+<div>
+  {% include "includes/offering_header.html" with offering=offering tabs=tabs perms_for=perms_for only %}
+  {% include "includes/setup_checklist.html" with status=status offering=offering can_manage_enrollment=can_manage_enrollment only %}
+
+  <div class="row g-4">
+    {# ---------------- Learning outcomes ---------------- #}
+    <div class="col-lg-6">
+      <section class="card h-100" id="los" aria-labelledby="los-title">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h2 class="h5 mb-0" id="los-title">Learning outcomes</h2>
+          {% if perms_for.can_edit and lo_rows %}
+            <a class="btn btn-sm btn-primary" href="{% url 'outcomes:lo_create' offering_id=offering.pk %}">+ Add outcome</a>
+          {% endif %}
+        </div>
+        {% if lo_rows %}
+          <ul class="list-group list-group-flush">
+            {% for row in lo_rows %}
+              <li class="list-group-item d-flex gap-2 align-items-start">
+                <span class="badge text-bg-secondary pl-num mt-1">LO {{ row.lo.number }}</span>
+                <span class="flex-grow-1">
+                  {{ row.lo.description }}
+                  {% if row.lo.source != "manual" %}<span class="badge text-bg-light border ms-1">{{ row.lo.get_source_display }}</span>{% endif %}
+                </span>
+                {% if perms_for.can_edit %}
+                  <div class="d-flex gap-1 flex-shrink-0">
+                    {% if row.up_order %}
+                      <form method="post" action="{% url 'outcomes:lo_reorder' offering_id=offering.pk %}">
+                        {% csrf_token %}<input type="hidden" name="order" value="{{ row.up_order }}">
+                        <button class="btn btn-sm btn-outline-secondary" aria-label="Move LO {{ row.lo.number }} up">↑</button>
+                      </form>
+                    {% endif %}
+                    {% if row.down_order %}
+                      <form method="post" action="{% url 'outcomes:lo_reorder' offering_id=offering.pk %}">
+                        {% csrf_token %}<input type="hidden" name="order" value="{{ row.down_order }}">
+                        <button class="btn btn-sm btn-outline-secondary" aria-label="Move LO {{ row.lo.number }} down">↓</button>
+                      </form>
+                    {% endif %}
+                    <a class="btn btn-sm btn-outline-secondary" aria-label="Edit LO {{ row.lo.number }}"
+                       href="{% url 'outcomes:lo_edit' offering_id=offering.pk lo_id=row.lo.pk %}">Edit</a>
+                    {% url 'outcomes:lo_delete' offering_id=offering.pk lo_id=row.lo.pk as delete_url %}
+                    <a class="btn btn-sm btn-outline-danger" aria-label="Delete LO {{ row.lo.number }}" href="{{ delete_url }}"
+                       hx-get="{{ delete_url }}" hx-target="#modal-content"
+                       data-bs-toggle="modal" data-bs-target="#modal">Delete</a>
+                  </div>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="card-body">
+            {% include "includes/empty_state.html" with title="No learning outcomes yet" message="Learning outcomes say what a student can do after this course, for example “Design a relational schema in 3NF”. Every grade reaches the program outcomes through them, so add them first." only %}
+            {% if perms_for.can_edit %}
+              <p class="text-center mb-0">
+                <a class="btn btn-primary" href="{% url 'outcomes:lo_create' offering_id=offering.pk %}">+ Add the first outcome</a>
+                {# S6-01 adds an "Upload syllabus instead" button here. #}
+              </p>
+            {% endif %}
+          </div>
+        {% endif %}
+      </section>
+    </div>
+
+    {# ---------------- Assessments ---------------- #}
+    <div class="col-lg-6">
+      <section class="card h-100" id="assessments" aria-labelledby="assessments-title">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h2 class="h5 mb-0" id="assessments-title">Assessments</h2>
+          {% if perms_for.can_edit and assessments %}
+            <a class="btn btn-sm btn-primary" href="{% url 'outcomes:assessment_create' offering_id=offering.pk %}">+ Add assessment</a>
+          {% endif %}
+        </div>
+        {% if assessments %}
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr><th scope="col">Name</th><th scope="col">Kind</th><th scope="col" class="text-end">Max</th>
+                    <th scope="col" class="text-end">Course %</th><th scope="col">Due</th>
+                    {% if perms_for.can_edit %}<th scope="col"><span class="visually-hidden">Actions</span></th>{% endif %}</tr>
+              </thead>
+              <tbody>
+                {% for a in assessments %}
+                  <tr>
+                    <td>{{ a.name }}{% if a.published_at %} <span class="badge text-bg-success">Published</span>{% endif %}</td>
+                    <td>{{ a.get_kind_display }}</td>
+                    <td class="text-end pl-num">{{ a.max_score|weight }}</td>
+                    <td class="text-end pl-num">{% if a.course_weight is not None %}{{ a.course_weight|weight }}{% else %}<span class="text-body-secondary">—</span>{% endif %}</td>
+                    <td>{{ a.due_date|date:"j M"|default:"—" }}</td>
+                    {% if perms_for.can_edit %}
+                      <td class="text-end text-nowrap">
+                        <a class="btn btn-sm btn-outline-secondary" aria-label="Edit {{ a.name }}"
+                           href="{% url 'outcomes:assessment_edit' offering_id=offering.pk assessment_id=a.pk %}">Edit</a>
+                        {% url 'outcomes:assessment_delete' offering_id=offering.pk assessment_id=a.pk as delete_url %}
+                        <a class="btn btn-sm btn-outline-danger" aria-label="Delete {{ a.name }}" href="{{ delete_url }}"
+                           hx-get="{{ delete_url }}" hx-target="#modal-content"
+                           data-bs-toggle="modal" data-bs-target="#modal">Delete</a>
+                      </td>
+                    {% endif %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row" colspan="3">Course weights</th>
+                  <td class="text-end pl-num">{% if course_weight_total is not None %}{{ course_weight_total|weight }}%{% else %}—{% endif %}</td>
+                  <td colspan="{% if perms_for.can_edit %}2{% else %}1{% endif %}">
+                    {% if not course_weight_ok %}
+                      <span class="text-warning-emphasis small"><span aria-hidden="true">⚠</span> Should add up to 100%</span>
+                    {% elif course_weight_total is not None %}
+                      <span class="text-success small"><span aria-hidden="true">✓</span> Adds up to 100%</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          {% if missing_course_weight and course_weight_total is not None %}
+            <p class="small text-body-secondary px-3 pt-2 mb-2">{{ missing_course_weight }} assessment{{ missing_course_weight|pluralize }} without a course weight.</p>
+          {% endif %}
+        {% else %}
+          <div class="card-body">
+            {% include "includes/empty_state.html" with title="No assessments yet" message="Assessments are the things you grade: midterms, the final, projects, quizzes. Add each one with its maximum mark." only %}
+            {% if perms_for.can_edit %}
+              <p class="text-center mb-0"><a class="btn btn-primary" href="{% url 'outcomes:assessment_create' offering_id=offering.pk %}">+ Add the first assessment</a></p>
+            {% endif %}
+          </div>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}

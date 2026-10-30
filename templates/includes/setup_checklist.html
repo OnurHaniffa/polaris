@@ -1,0 +1,28 @@
+{# Params: status (SetupStatus), offering, can_manage_enrollment (bool) #}
+<section class="card mb-4" aria-labelledby="checklist-title-{{ offering.pk }}">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-baseline mb-2">
+      <h2 class="h6 mb-0" id="checklist-title-{{ offering.pk }}">Setup checklist</h2>
+      <span class="small text-body-secondary">{{ status.done_count }} of 5 done</span>
+    </div>
+    <div class="progress mb-3" style="height: .4rem" role="progressbar" aria-label="Setup progress"
+         aria-valuenow="{{ status.done_count }}" aria-valuemin="0" aria-valuemax="5">
+      <div class="progress-bar{% if status.is_complete %} bg-success{% endif %}"
+           style="width: {% widthratio status.done_count 5 100 %}%"></div>
+    </div>
+    <ul class="list-unstyled d-flex flex-wrap gap-3 mb-0 small">
+      {% url 'outcomes:setup' offering_id=offering.pk as setup_url %}
+      {% url 'outcomes:mapping' offering_id=offering.pk as mapping_url %}
+      <li>{% if status.has_los %}<span aria-hidden="true">✅</span><span class="visually-hidden">Done:</span>{% else %}<span aria-hidden="true">⬜</span><span class="visually-hidden">To do:</span>{% endif %}
+        <a href="{{ setup_url }}#los">Learning outcomes</a></li>
+      <li>{% if status.has_assessments %}<span aria-hidden="true">✅</span><span class="visually-hidden">Done:</span>{% else %}<span aria-hidden="true">⬜</span><span class="visually-hidden">To do:</span>{% endif %}
+        <a href="{{ setup_url }}#assessments">Assessments</a></li>
+      <li>{% if status.has_assessment_lo %}<span aria-hidden="true">✅</span><span class="visually-hidden">Done:</span>{% else %}<span aria-hidden="true">⬜</span><span class="visually-hidden">To do:</span>{% endif %}
+        {% if mapping_url %}<a href="{{ mapping_url }}#a-lo">Assessment → LO weights</a>{% else %}Assessment → LO weights{% endif %}</li>
+      <li>{% if status.has_lo_po %}<span aria-hidden="true">✅</span><span class="visually-hidden">Done:</span>{% else %}<span aria-hidden="true">⬜</span><span class="visually-hidden">To do:</span>{% endif %}
+        {% if mapping_url %}<a href="{{ mapping_url }}#lo-po">LO → PO weights</a>{% else %}LO → PO weights{% endif %}</li>
+      <li>{% if status.has_students %}<span aria-hidden="true">✅</span><span class="visually-hidden">Done:</span>{% else %}<span aria-hidden="true">⬜</span><span class="visually-hidden">To do:</span>{% endif %}
+        {% if can_manage_enrollment %}<a href="{% url 'catalog:enrollments' offering_id=offering.pk %}">Students enrolled</a>{% else %}Students enrolled{% if not status.has_students %} <span class="text-body-secondary">(the department adds them)</span>{% endif %}{% endif %}</li>
+    </ul>
+  </div>
+</section>
