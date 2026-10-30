@@ -140,6 +140,17 @@ ROWS: list[Row] = [
     Row("accounts:login", "GET", {p: (200 if p == "anonymous" else 302) for p in PERSONAS}),
     Row("accounts:logout", "POST", {p: 302 for p in PERSONAS}),
     Row("accounts:switch_role", "POST", {p: 302 for p in PERSONAS}),
+    # S2-09: password reset is public; a made-up token shows the "link doesn't work" page.
+    Row("accounts:password_reset", "GET", PUBLIC),
+    Row("accounts:password_reset_done", "GET", PUBLIC),
+    Row(
+        "accounts:password_reset_confirm",
+        "GET",
+        PUBLIC,
+        lambda world: {"uidb64": "MQ", "token": "abc-123"},
+        "bad token",
+    ),
+    Row("accounts:password_reset_complete", "GET", PUBLIC),
     Row("catalog:teaching", "GET", TEACHING),
     Row("catalog:offering", "GET", READ_OFFERING, offering_kwargs("open_offering"), "open"),
     Row("catalog:offering", "GET", READ_OFFERING, offering_kwargs("closed_offering"), "closed"),
