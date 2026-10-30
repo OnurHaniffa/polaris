@@ -1,0 +1,49 @@
+{% extends "catalog/department_base.html" %}
+{% block title %}{{ po_set.label }}{% endblock %}
+{% block department %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+  <div>
+    <h1 class="h3 mb-1">{{ po_set.label }} {% if po_set.is_active %}<span class="badge text-bg-success align-middle fs-6">Active</span>{% endif %}</h1>
+    <p class="text-body-secondary mb-0">For cohorts from {{ po_set.effective_from_year }}</p>
+  </div>
+  {% if not po_set.is_active %}
+    <form method="post" action="{% url 'catalog:po_set_activate' set_id=po_set.pk %}">
+      {% csrf_token %}
+      <button class="btn btn-warning">Make this the active set</button>
+    </form>
+  {% endif %}
+</div>
+<table class="table align-middle">
+  <thead><tr><th scope="col">PO</th><th scope="col">Short name</th><th scope="col">Official wording</th>
+             <th scope="col" class="text-end">LO links</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+  <tbody>
+  {% for po in outcomes %}
+    <tr>
+      <td class="fw-semibold">{{ po.number }}</td>
+      <td>{{ po.short_name }}</td>
+      <td class="small">{{ po.description }}</td>
+      <td class="text-end tabular-nums">{{ po.links }}</td>
+      <td class="text-end text-nowrap">
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:po_edit' po_id=po.pk %}">Edit</a>
+        {% if po.links == 0 %}
+          <a class="btn btn-sm btn-outline-danger" href="{% url 'catalog:po_delete' po_id=po.pk %}"
+             hx-get="{% url 'catalog:po_delete' po_id=po.pk %}" hx-target="#modal-content"
+             data-bs-toggle="modal" data-bs-target="#modal">Delete</a>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<details class="card" style="max-width: 36rem" {% if copy_form.errors %}open{% endif %}>
+  <summary class="card-header">Create a new version from this set</summary>
+  <div class="card-body">
+    <p class="small text-body-secondary">Copies all {{ outcomes|length }} outcomes. The copy stays inactive until you activate it.</p>
+    <form method="post" action="{% url 'catalog:po_set_copy' set_id=po_set.pk %}" novalidate>
+      {% csrf_token %}
+      {% include "includes/form_fields.html" with form=copy_form only %}
+      <button class="btn btn-primary">Copy set</button>
+    </form>
+  </div>
+</details>
+{% endblock %}

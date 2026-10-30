@@ -1,0 +1,19 @@
+{% extends "catalog/department_base.html" %}
+{% block title %}Edit {{ offering.course.code }}{% endblock %}
+{% block department %}
+<div style="max-width: 40rem">
+  <p class="text-body-secondary mb-1">{{ offering.term.name }}</p>
+  <h1 class="h3 mb-3">{{ offering.course.code }} · {{ offering.course.title }}</h1>
+  {% if is_closed %}
+    <div class="alert alert-secondary" role="status">🔒 {{ offering.term.name }} is closed. Reopen the term to change this offering.</div>
+  {% endif %}
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <fieldset {% if is_closed %}disabled{% endif %}>
+      {% include "includes/form_fields.html" with form=form only %}
+      <button class="btn btn-primary">Save</button>
+    </fieldset>
+    <a class="btn btn-link px-0 mt-2" href="{% url 'catalog:offerings' %}">Back to offerings</a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div>
+  <nav aria-label="Department sections" class="mb-4">
+    <ul class="nav nav-pills">
+      {% url 'reports:department' as overview_url %}
+      {% if overview_url %}
+        <li class="nav-item"><a class="nav-link" href="{{ overview_url }}">Overview</a></li>
+      {% endif %}
+      <li class="nav-item"><a class="nav-link{% if section == 'offerings' %} active{% endif %}" href="{% url 'catalog:offerings' %}">Offerings</a></li>
+      <li class="nav-item"><a class="nav-link{% if section == 'terms' %} active{% endif %}" href="{% url 'catalog:terms' %}">Terms</a></li>
+      <li class="nav-item"><a class="nav-link{% if section == 'courses' %} active{% endif %}" href="{% url 'catalog:courses' %}">Courses</a></li>
+      <li class="nav-item"><a class="nav-link{% if section == 'outcomes' %} active{% endif %}" href="{% url 'catalog:outcomes' %}">Program outcomes</a></li>
+    </ul>
+  </nav>
+  {% block department %}{% endblock %}
+</div>
+{% endblock %}

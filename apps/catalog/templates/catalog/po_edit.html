@@ -1,0 +1,14 @@
+{% extends "catalog/department_base.html" %}
+{% block title %}Edit PO {{ po.number }}{% endblock %}
+{% block department %}
+<div style="max-width: 44rem">
+  <p class="text-body-secondary mb-1">{{ po.po_set.label }}</p>
+  <h1 class="h3 mb-3">Edit PO {{ po.number }}</h1>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "includes/form_fields.html" with form=form only %}
+    <button class="btn btn-primary">Save</button>
+    <a class="btn btn-link" href="{% url 'catalog:po_set' set_id=po.po_set_id %}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

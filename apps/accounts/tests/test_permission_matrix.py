@@ -46,6 +46,7 @@ from django.test import Client
 from django.urls import URLPattern, URLResolver, get_resolver, reverse
 
 from apps.accounts.tests.permission_world import (
+    DEPARTMENT,
     PERSONAS,
     PUBLIC,
     READ_OFFERING,
@@ -83,15 +84,15 @@ class Row:
 NOWHERE = {p: 404 for p in PERSONAS}  # the style guide only exists while DEBUG is on
 
 # "home" redirects to the active role's home page (S2-01). Students get the welcome page
-# until S3-02 builds their profile; heads until S2-03 builds the offerings list.
+# until S3-02 builds their profile.
 HOME = {
     "anonymous": 302,
     "student": 200,
     "other_student": 200,
     "instructor": 302,
     "other_instructor": 302,
-    "head": 200,
-    "other_head": 200,
+    "head": 302,
+    "other_head": 302,
     "admin": 302,
 }
 # require_role("instructor", "head"); superusers always pass.
@@ -105,6 +106,32 @@ TEACHING = {
     "admin": 200,
 }
 
+# A /department/ page about one CSE object: the EEE head gets 404 like everyone else
+# outside the program (S2-03 scopes every lookup to head_program()).
+CSE_OBJECT = {**DEPARTMENT, "other_head": 404}
+
+
+def _status(table: dict, allowed: int) -> dict:
+    """Same people as `table`, but the allowed ones get `allowed` (e.g. 302 after a POST)."""
+    return {p: (allowed if code == 200 else code) for p, code in table.items()}
+
+
+def _cse_set(world):
+    return {"set_id": world.program.po_sets.get(is_active=True).pk}
+
+
+def _cse_po(world):
+    return {"po_id": world.program.po_sets.get(is_active=True).outcomes.first().pk}
+
+
+def _term(world):
+    return {"term_id": world.open_offering.term_id}
+
+
+def _course(world):
+    return {"course_id": world.open_offering.course_id}
+
+
 ROWS: list[Row] = [
     Row("healthz", "GET", PUBLIC),
     Row("home", "GET", HOME),
@@ -116,6 +143,23 @@ ROWS: list[Row] = [
     Row("catalog:teaching", "GET", TEACHING),
     Row("catalog:offering", "GET", READ_OFFERING, offering_kwargs("open_offering"), "open"),
     Row("catalog:offering", "GET", READ_OFFERING, offering_kwargs("closed_offering"), "closed"),
+    # S2-03: department pages
+    Row("catalog:terms", "GET", DEPARTMENT),
+    Row("catalog:term_edit", "GET", DEPARTMENT, _term),  # one calendar for every program
+    Row("catalog:term_status", "POST", _status(DEPARTMENT, 302), _term),  # no action → message
+    Row("catalog:courses", "GET", DEPARTMENT),
+    Row("catalog:course_edit", "GET", CSE_OBJECT, _course),
+    Row("catalog:offerings", "GET", DEPARTMENT),
+    Row("catalog:offering_edit", "GET", CSE_OBJECT, offering_kwargs("open_offering"), "open"),
+    Row("catalog:offering_edit", "GET", CSE_OBJECT, offering_kwargs("closed_offering"), "closed"),
+    Row("catalog:enrollments", "GET", CSE_OBJECT, offering_kwargs("open_offering"), "open"),
+    Row("catalog:enrollments", "GET", CSE_OBJECT, offering_kwargs("closed_offering"), "closed"),
+    Row("catalog:outcomes", "GET", DEPARTMENT),
+    Row("catalog:po_set", "GET", CSE_OBJECT, _cse_set),
+    Row("catalog:po_set_copy", "POST", _status(CSE_OBJECT, 400), _cse_set),  # empty form
+    Row("catalog:po_set_activate", "POST", _status(CSE_OBJECT, 302), _cse_set),  # already active
+    Row("catalog:po_edit", "GET", CSE_OBJECT, _cse_po),
+    Row("catalog:po_delete", "GET", CSE_OBJECT, _cse_po),
 ]
 
 

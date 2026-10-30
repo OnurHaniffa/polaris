@@ -1,0 +1,57 @@
+{% extends "catalog/department_base.html" %}
+{% block title %}Offerings{% endblock %}
+{% block department %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
+      <h1 class="h3 mb-0">Offerings</h1>
+      <form method="get" class="d-flex gap-2 align-items-end">
+        <div>
+          <label class="form-label small mb-0" for="term-filter">Term</label>
+          <select class="form-select form-select-sm" id="term-filter" name="term" onchange="this.form.submit()">
+            <option value="">All terms</option>
+            {% for t in terms %}
+              <option value="{{ t.pk }}"{% if selected_term and t.pk == selected_term.pk %} selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <noscript><button class="btn btn-sm btn-outline-secondary">Filter</button></noscript>
+      </form>
+    </div>
+    {% if offerings %}
+      <table class="table align-middle">
+        <thead><tr><th scope="col">Course</th><th scope="col">Term</th><th scope="col">Sec.</th>
+                   <th scope="col">Instructors</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+        <tbody>
+        {% for o in offerings %}
+          <tr>
+            <td><a href="{% url 'catalog:offering' offering_id=o.pk %}">{{ o.course.code }}</a>
+                <div class="small text-body-secondary">{{ o.course.title }}</div></td>
+            <td class="text-nowrap">{{ o.term.name }}{% if o.term.status == "closed" %} 🔒{% endif %}</td>
+            <td>{{ o.section }}</td>
+            <td>{% for p in o.instructors.all %}{{ p.get_full_name }}{% if not forloop.last %}, {% endif %}
+                {% empty %}<span class="text-warning-emphasis">⚠ none assigned</span>{% endfor %}</td>
+            <td class="text-end text-nowrap">
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:offering_edit' offering_id=o.pk %}">Edit</a>
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:enrollments' offering_id=o.pk %}">Students</a>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      {% include "includes/empty_state.html" with title="No offerings yet" message="Pick a course and a term on the right, assign its instructors, then add students." only %}
+    {% endif %}
+  </div>
+  <div class="col-lg-4">
+    <div class="card"><div class="card-body">
+      <h2 class="h5">New offering</h2>
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% include "includes/form_fields.html" with form=form only %}
+        <button class="btn btn-primary">Create offering</button>
+      </form>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

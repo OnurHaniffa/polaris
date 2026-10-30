@@ -1,0 +1,65 @@
+{% extends "catalog/department_base.html" %}
+{% block title %}Terms{% endblock %}
+{% block department %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <h1 class="h3 mb-3">Terms</h1>
+    {% if terms %}
+      <table class="table align-middle">
+        <thead><tr><th scope="col">Code</th><th scope="col">Name</th><th scope="col">Dates</th>
+                   <th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+        <tbody>
+        {% for term in terms %}
+          <tr>
+            <td class="fw-semibold">{{ term.code }}</td>
+            <td>{{ term.name }}</td>
+            <td class="text-nowrap">{{ term.starts_on|date:"j M Y" }} – {{ term.ends_on|date:"j M Y" }}</td>
+            <td>
+              {% if term.status == "open" %}<span class="badge text-bg-success">Open</span>
+              {% elif term.status == "closed" %}<span class="badge text-bg-secondary">🔒 Closed</span>
+              {% else %}<span class="badge text-bg-info">Planned</span>{% endif %}
+            </td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:term_edit' term_id=term.pk %}">Edit</a>
+              {% if term.status == "planned" %}
+                <form class="d-inline" method="post" action="{% url 'catalog:term_status' term_id=term.pk %}">
+                  {% csrf_token %}<button class="btn btn-sm btn-primary" name="action" value="open">Open</button>
+                </form>
+              {% elif term.status == "open" %}
+                <form class="d-inline" method="post" action="{% url 'catalog:term_status' term_id=term.pk %}">
+                  {% csrf_token %}<button class="btn btn-sm btn-outline-danger" name="action" value="close">Close</button>
+                </form>
+              {% else %}
+                <details class="d-inline-block text-start">
+                  <summary class="btn btn-sm btn-outline-warning">Reopen…</summary>
+                  <form method="post" action="{% url 'catalog:term_status' term_id=term.pk %}" class="mt-2" style="min-width: 18rem">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reopen">
+                    <label class="form-label small" for="reason-{{ term.pk }}">Why reopen? (saved in the audit trail)</label>
+                    <textarea class="form-control form-control-sm mb-2" id="reason-{{ term.pk }}" name="reason" rows="2" minlength="10" required></textarea>
+                    <button class="btn btn-sm btn-warning">Reopen {{ term.code }}</button>
+                  </form>
+                </details>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <p class="small text-body-secondary">Closing a term makes all its courses read-only for everyone. Instructors can still view them.</p>
+    {% else %}
+      {% include "includes/empty_state.html" with title="No terms yet" message="Create the current term on the right. It starts as planned, so instructors can set up their courses before you open it." only %}
+    {% endif %}
+  </div>
+  <div class="col-lg-4">
+    <div class="card"><div class="card-body">
+      <h2 class="h5">New term</h2>
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% include "includes/form_fields.html" with form=form only %}
+        <button class="btn btn-primary">Create term</button>
+      </form>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

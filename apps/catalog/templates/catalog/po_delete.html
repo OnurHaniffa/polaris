@@ -1,0 +1,27 @@
+{% extends "catalog/department_base.html" %}
+{% block title %}Delete PO {{ po.number }}{% endblock %}
+{% block department %}
+<div class="card" style="max-width: 36rem">
+  {% partialdef confirm inline %}
+  <div class="modal-header"><h2 class="modal-title h5">Delete PO {{ po.number }} · {{ po.short_name }}?</h2></div>
+  <div class="modal-body">
+    {% if used_by %}
+      <div class="alert alert-danger mb-0" role="alert">
+        PO {{ po.number }} is used by {{ used_by|join:", " }}. It can't be deleted. Edit its wording instead.
+      </div>
+    {% else %}
+      <p class="mb-0">No course links to this outcome, so nothing else changes. The deletion is recorded in the audit trail.</p>
+    {% endif %}
+  </div>
+  <div class="modal-footer">
+    <a class="btn btn-link" href="{% url 'catalog:po_set' set_id=po.po_set_id %}" data-bs-dismiss="modal">Cancel</a>
+    {% if not used_by %}
+      <form method="post" action="{% url 'catalog:po_delete' po_id=po.pk %}">
+        {% csrf_token %}
+        <button class="btn btn-danger">Delete PO {{ po.number }}</button>
+      </form>
+    {% endif %}
+  </div>
+  {% endpartialdef %}
+</div>
+{% endblock %}

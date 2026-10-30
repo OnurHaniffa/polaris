@@ -1,0 +1,16 @@
+{% extends "catalog/department_base.html" %}
+{% block title %}Program outcomes{% endblock %}
+{% block department %}
+<h1 class="h3 mb-3">{{ program.code }} program outcome sets</h1>
+<p class="text-body-secondary">Students are measured against the newest set whose start year is on or before their cohort (policy P13). New mappings always use the <strong>active</strong> set.</p>
+<div class="list-group" style="max-width: 44rem">
+  {% for s in sets %}
+    <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+       href="{% url 'catalog:po_set' set_id=s.pk %}">
+      <span><span class="fw-semibold">{{ s.label }}</span>
+        <span class="small text-body-secondary">· cohorts from {{ s.effective_from_year }} · {{ s.n }} outcomes</span></span>
+      {% if s.is_active %}<span class="badge text-bg-success">Active</span>{% endif %}
+    </a>
+  {% endfor %}
+</div>
+{% endblock %}

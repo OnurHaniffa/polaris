@@ -1,0 +1,39 @@
+{% extends "catalog/department_base.html" %}
+{% load polaris %}
+{% block title %}Courses{% endblock %}
+{% block department %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <h1 class="h3 mb-3">{{ program.code }} course catalog</h1>
+    {% if courses %}
+      <table class="table align-middle">
+        <thead><tr><th scope="col">Code</th><th scope="col">Title</th><th scope="col" class="text-end">Credits</th>
+                   <th scope="col" class="text-end">ECTS</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+        <tbody>
+        {% for c in courses %}
+          <tr>
+            <td class="fw-semibold text-nowrap">{{ c.code }}</td>
+            <td>{{ c.title }}</td>
+            <td class="text-end tabular-nums">{{ c.credits|weight }}</td>
+            <td class="text-end tabular-nums">{{ c.ects|weight }}</td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:course_edit' course_id=c.pk %}">Edit</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      {% include "includes/empty_state.html" with title="The catalog is empty" message="Add the courses your program teaches. You create a term's offerings from these." only %}
+    {% endif %}
+  </div>
+  <div class="col-lg-4">
+    <div class="card"><div class="card-body">
+      <h2 class="h5">New course</h2>
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% include "includes/form_fields.html" with form=form only %}
+        <button class="btn btn-primary">Add course</button>
+      </form>
+    </div></div>
+  </div>
+</div>
+{% endblock %}
