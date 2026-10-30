@@ -1,0 +1,54 @@
+{# Params: grid (WeightGrid), editable (bool). validate_cell renders the "cell" partial alone. #}
+{% partialdef cell %}
+<td class="pl-cell{% if cell.origin and cell.origin != 'manual' %} pl-cell--{{ cell.origin }}{% endif %}"{% if cell.rationale %} title="{{ cell.rationale }}"{% endif %}>
+  <input type="text" name="{{ cell.name }}" value="{{ cell.value }}" autocomplete="off"
+         inputmode="{% if grid.kind == 'lo_po' %}numeric{% else %}decimal{% endif %}"
+         class="form-control form-control-sm text-center pl-cell__input{% if cell.error %} is-invalid{% endif %}"
+         aria-label="{{ cell.label }}"
+         {% if cell.error %}aria-invalid="true" aria-describedby="{{ cell.name }}-err"{% endif %}
+         {% if not editable %}disabled
+         {% elif grid.validate_url %}hx-post="{{ grid.validate_url }}" hx-trigger="change" hx-target="closest td" hx-swap="outerHTML"
+         hx-vals='{"kind": "{{ grid.kind|escapejs }}", "name": "{{ cell.name|escapejs }}", "label": "{{ cell.label|escapejs }}"}'{% endif %}>
+  {% if cell.origin == "document" %}<span class="pl-cell__mark" aria-hidden="true">doc</span><span class="visually-hidden">from the syllabus</span>
+  {% elif cell.origin == "derived" %}<span class="pl-cell__mark" aria-hidden="true">calc</span><span class="visually-hidden">derived from the course weight</span>
+  {% elif cell.origin == "ai_suggested" %}<span class="pl-cell__mark" aria-hidden="true">AI</span><span class="visually-hidden">suggested by AI, not yet confirmed: {{ cell.rationale }}</span>{% endif %}
+  {% if cell.error %}<div id="{{ cell.name }}-err" class="invalid-feedback">{{ cell.error }}</div>{% endif %}
+</td>
+{% endpartialdef %}
+<div class="table-responsive pl-grid-wrap">
+  <table class="table table-sm align-middle pl-grid" data-grid-kind="{{ grid.kind }}">
+    <caption class="text-body-secondary small">{{ grid.caption }}</caption>
+    {% if grid.rows and grid.cols %}
+      <thead>
+        <tr>
+          <th scope="col"><span class="visually-hidden">Row</span></th>
+          {% for col in grid.cols %}
+            <th scope="col" class="text-center text-nowrap">
+              {% if col.tooltip %}<span class="pl-col-tip" tabindex="0" data-bs-toggle="tooltip" data-bs-title="{{ col.tooltip }}">{{ col.label }}</span>{% else %}{{ col.label }}{% endif %}
+            </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in grid.rows %}
+          <tr>
+            <th scope="row" class="pl-grid__rowhead"{% if row.tooltip %} title="{{ row.tooltip }}"{% endif %}>{{ row.label }}</th>
+            {% for cell in row.cells %}{% partial cell %}{% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+      {% if grid.footer %}
+        <tfoot>
+          <tr>
+            <th scope="row" class="small">{{ grid.footer_label }}</th>
+            {% for total in grid.footer %}
+              <td class="text-center pl-num small{% if total == '0' %} pl-total--zero{% endif %}">{{ total }}{% if total == '0' %}<span class="visually-hidden"> (nothing)</span>{% endif %}</td>
+            {% endfor %}
+          </tr>
+        </tfoot>
+      {% endif %}
+    {% else %}
+      <tbody><tr><td class="text-body-secondary">{{ grid.empty_message }}</td></tr></tbody>
+    {% endif %}
+  </table>
+</div>

@@ -5,7 +5,23 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
-from .models import Assessment, LearningOutcome
+from apps.catalog.models import ProgramOutcomeSet
+from apps.catalog.selectors import active_po_set
+
+from .matrix import (
+    A_LO,
+    LO_PO,
+    SOURCE_TO_ORIGIN,
+    GridCell,
+    GridCol,
+    GridRow,
+    WeightGrid,
+    cell_name,
+    column_totals,
+    fmt_weight,
+    version_of,
+)
+from .models import Assessment, AssessmentLOWeight, LearningOutcome, LOPOWeight
 
 HUNDRED = Decimal("100")
 
@@ -113,3 +129,102 @@ def assessment_deletion_impact(assessment: Assessment) -> DeletionImpact:
     if drafts:
         lines.append(f"{drafts} draft grade{'s' if drafts != 1 else ''} (never published)")
     return DeletionImpact(title=f"Delete {assessment.name}?", lines=tuple(lines))
+
+
+@dataclass
+class MappingGrid:
+    assessments: list  # Assessment objects, display order
+    los: list  # LearningOutcome objects, by number
+    pos: list  # ProgramOutcome objects of the active set, by number
+    a_lo: dict  # (assessment_id, lo_id) -> Decimal weight
+    lo_po: dict  # (lo_id, po_id) -> int weight (every LO→PO row, active set or not)
+    a_lo_grid: WeightGrid
+    lo_po_grid: WeightGrid
+
+    def grid(self, kind: str) -> WeightGrid:
+        return self.a_lo_grid if kind == A_LO else self.lo_po_grid
+
+
+def mapping_grid(offering, *, validate_url: str = "") -> MappingGrid:
+    assessments = list(offering.assessments.all())
+    los = list(offering.learning_outcomes.all())
+    try:
+        pos = list(active_po_set(offering.course.program).outcomes.all())
+    except ProgramOutcomeSet.DoesNotExist:
+        pos = []
+    a_lo_rows = list(AssessmentLOWeight.objects.filter(assessment__offering=offering))
+    lo_po_rows = list(LOPOWeight.objects.filter(learning_outcome__offering=offering))
+    a_lo = {(w.assessment_id, w.learning_outcome_id): w.weight for w in a_lo_rows}
+    lo_po = {(w.learning_outcome_id, w.program_outcome_id): w.weight for w in lo_po_rows}
+    lo_po_meta = {(w.learning_outcome_id, w.program_outcome_id): w for w in lo_po_rows}
+
+    a_lo_grid = WeightGrid(
+        kind=A_LO,
+        caption="Assessment → LO weights (%). Blank = this assessment doesn't measure that LO.",
+        cols=[GridCol(f"LO {lo.number}", lo.description) for lo in los],
+        rows=[
+            GridRow(
+                label=a.name,
+                tooltip=f"{a.get_kind_display()}, out of {fmt_weight(a.max_score)}",
+                cells=[
+                    GridCell(
+                        name=cell_name(A_LO, a.pk, lo.pk),
+                        value=fmt_weight(a_lo[(a.pk, lo.pk)]) if (a.pk, lo.pk) in a_lo else "",
+                        label=f"{a.name} to LO {lo.number}",
+                    )
+                    for lo in los
+                ],
+            )
+            for a in assessments
+        ],
+        footer_label="Total %",
+        version=version_of((a_id, lo_id, w) for (a_id, lo_id), w in a_lo.items()),
+        validate_url=validate_url,
+        empty_message="Add assessments and learning outcomes on the Setup tab first.",
+    )
+
+    def lo_po_cell(lo, po):
+        row = lo_po_meta.get((lo.pk, po.pk))
+        return GridCell(
+            name=cell_name(LO_PO, lo.pk, po.pk),
+            value=str(row.weight) if row else "",
+            label=f"LO {lo.number} to PO {po.number}",
+            origin=SOURCE_TO_ORIGIN.get(row.source, "") if row else "",
+            rationale=row.rationale if row else "",
+        )
+
+    lo_po_grid = WeightGrid(
+        kind=LO_PO,
+        caption="LO → PO weights (1–5). Blank = no contribution.",
+        cols=[
+            GridCol(f"PO {po.number}", f"PO {po.number} · {po.short_name}: {po.description}")
+            for po in pos
+        ],
+        rows=[
+            GridRow(
+                label=f"LO {lo.number}",
+                tooltip=lo.description,
+                cells=[lo_po_cell(lo, po) for po in pos],
+            )
+            for lo in los
+        ],
+        footer_label="PO coverage",
+        version=version_of((lo_id, po_id, w) for (lo_id, po_id), w in lo_po.items()),
+        validate_url=validate_url,
+        empty_message=(
+            "Add learning outcomes on the Setup tab first."
+            if pos
+            else "This program has no active list of program outcomes. Ask the department head."
+        ),
+    )
+    for grid in (a_lo_grid, lo_po_grid):
+        grid.footer = column_totals(grid)
+    return MappingGrid(
+        assessments=assessments,
+        los=los,
+        pos=pos,
+        a_lo=a_lo,
+        lo_po=lo_po,
+        a_lo_grid=a_lo_grid,
+        lo_po_grid=lo_po_grid,
+    )

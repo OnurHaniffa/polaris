@@ -75,3 +75,10 @@ def course(db):
 def teacher_client(client, course):
     client.force_login(course.teacher)
     return client
+
+
+@pytest.fixture
+def head_user(course):
+    head = UserFactory(email="head@test.edu")
+    MembershipFactory(user=head, program=course.program, role="head")
+    return head

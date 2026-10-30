@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Mapping · {{ offering.course.code }}{% endblock %}
+{% block content %}
+<div>
+  {% include "includes/offering_header.html" with offering=offering tabs=tabs perms_for=perms_for only %}
+
+  {% if stale_label %}
+    <div class="alert alert-warning" role="alert">
+      <strong>This mapping changed since you opened it.</strong>
+      Someone else saved the {{ stale_label }} weights after you loaded this page. Your edits are shown below
+      but were <strong>not</strong> saved.
+      <a class="alert-link" href="{% url 'outcomes:mapping' offering_id=offering.pk %}">Load the latest version</a>,
+      then make your change again.
+    </div>
+  {% endif %}
+
+  {# S2-07 puts the mapping checks (lint) here. #}
+
+  <div class="row g-4">
+    <div class="col-xxl-5">
+      <section id="a-lo" aria-labelledby="a-lo-title">
+        <h2 class="h5" id="a-lo-title">Assessment → LO weights</h2>
+        <p class="small text-body-secondary">How much each assessment measures each learning outcome, in percent (1–100).
+          They don't need to add up to 100: a score divides by the sum of its weights anyway (policy P1).</p>
+        <form method="post" action="{% url 'outcomes:save_assessment_lo' offering_id=offering.pk %}" class="pl-grid-form" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="version" value="{{ mapping.a_lo_grid.version }}">
+          {% if mapping.a_lo_grid.has_errors %}
+            <div class="alert alert-danger py-2" role="alert">Nothing was saved. Fix the cells marked in red.
+              {% for e in mapping.a_lo_grid.form_errors %}<br>{{ e }}{% endfor %}</div>
+          {% endif %}
+          {% include "includes/weight_grid.html" with grid=mapping.a_lo_grid editable=perms_for.can_edit only %}
+          {% if perms_for.can_edit and mapping.a_lo_grid.rows and mapping.a_lo_grid.cols %}
+            <button type="submit" class="btn btn-primary" data-pl-save>Save assessment → LO weights</button>
+          {% endif %}
+        </form>
+      </section>
+    </div>
+
+    <div class="col-xxl-7">
+      <section id="lo-po" aria-labelledby="lo-po-title">
+        <h2 class="h5" id="lo-po-title">LO → PO weights</h2>
+        <p class="small text-body-secondary">How strongly each learning outcome supports each program outcome:
+          1 = a little, 5 = strongly, blank = not at all. Hover or focus a PO number to read its official wording.</p>
+        {% if mapping.lo_po_grid.has_origins %}
+          <p class="small mb-2">
+            <span class="pl-legend__swatch pl-cell--ai_suggested"></span><strong>AI</strong> suggested by AI, not yet confirmed ·
+            <span class="pl-legend__swatch pl-cell--document"></span><strong>doc</strong> read from the syllabus.
+            Editing a cell makes it yours.
+          </p>
+        {% endif %}
+        <form method="post" action="{% url 'outcomes:save_lo_po' offering_id=offering.pk %}" class="pl-grid-form" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="version" value="{{ mapping.lo_po_grid.version }}">
+          {% if mapping.lo_po_grid.has_errors %}
+            <div class="alert alert-danger py-2" role="alert">Nothing was saved. Fix the cells marked in red.
+              {% for e in mapping.lo_po_grid.form_errors %}<br>{{ e }}{% endfor %}</div>
+          {% endif %}
+          {% include "includes/weight_grid.html" with grid=mapping.lo_po_grid editable=perms_for.can_edit only %}
+          {% if perms_for.can_edit and mapping.lo_po_grid.rows and mapping.lo_po_grid.cols %}
+            <button type="submit" class="btn btn-primary" data-pl-save>Save LO → PO weights</button>
+          {% endif %}
+        </form>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -215,6 +215,13 @@ ROWS: list[Row] = [
     *offering_rows("outcomes:assessment_create", "GET", offering_kwargs),
     *offering_rows("outcomes:assessment_edit", "GET", _with_assessment),
     *offering_rows("outcomes:assessment_delete", "GET", _with_assessment),
+    # S2-05: weight grids. An empty POST has no version / no cell, so the views answer 400.
+    *offering_rows("outcomes:mapping", "GET", offering_kwargs, READ_OFFERING, READ_OFFERING),
+    *offering_rows(
+        "outcomes:save_assessment_lo", "POST", offering_kwargs, _status(WRITE_OPEN, 400)
+    ),
+    *offering_rows("outcomes:save_lo_po", "POST", offering_kwargs, _status(WRITE_OPEN, 400)),
+    *offering_rows("outcomes:validate_cell", "POST", offering_kwargs, _status(WRITE_OPEN, 400)),
 ]
 
 

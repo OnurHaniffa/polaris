@@ -23,5 +23,8 @@ urlpatterns = [
         views.assessment_delete,
         name="assessment_delete",
     ),
-    # S2-05 adds the mapping URLs below.
+    path(OFFERING + "mapping/", views.mapping, name="mapping"),
+    path(OFFERING + "mapping/assessment-lo/", views.save_assessment_lo, name="save_assessment_lo"),
+    path(OFFERING + "mapping/lo-po/", views.save_lo_po, name="save_lo_po"),
+    path(OFFERING + "mapping/validate/", views.validate_cell, name="validate_cell"),
 ]

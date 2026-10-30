@@ -6,6 +6,8 @@ AuditEvent written in the same transaction as the change.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import F, Max, Q
@@ -14,7 +16,17 @@ from apps.catalog.models import CourseOffering
 from apps.catalog.services import ensure_term_open
 from apps.core.audit import record, snapshot
 
-from .models import Assessment, LearningOutcome, Source
+from .matrix import (
+    A_LO,
+    LO_PO,
+    Cell,
+    cell_name,
+    fmt_weight,
+    matrix_version,
+    validate_assessment_lo_cell,
+    validate_lo_po_cell,
+)
+from .models import Assessment, AssessmentLOWeight, LearningOutcome, LOPOWeight, Source
 
 LO_FIELDS = ["number", "description", "source"]
 ASSESSMENT_FIELDS = ["name", "kind", "max_score", "course_weight", "due_date", "position"]
@@ -236,3 +248,181 @@ def delete_assessment(user, assessment) -> None:
         before["draft_grades"] = assessment.grades.filter(score__isnull=False).count()
         record(user, "assessment.delete", assessment, before=before, offering=offering)
         assessment.delete()  # CASCADE removes its AssessmentLOWeight rows and draft Grade rows
+
+
+STALE_MESSAGE = (
+    "This mapping changed since you opened it. Someone else saved it in the meantime. "
+    "Reload to see their version, then make your change again."
+)
+FOREIGN_CELL_MESSAGE = "This cell isn't part of this course's mapping any more. Reload the page."
+
+
+@dataclass(frozen=True)
+class MatrixSaveResult:
+    created: int
+    updated: int
+    deleted: int
+
+    @property
+    def changed(self) -> bool:
+        return bool(self.created or self.updated or self.deleted)
+
+
+def _check_version(offering, kind: str, expected: str) -> None:
+    if matrix_version(offering, kind) != expected:
+        raise ValidationError(STALE_MESSAGE, code="stale")
+
+
+def _validated_cells(kind, cells: list[Cell], row_ids: set[int], col_ids: set[int], validator):
+    """-> (wanted {(row, col): value}, posted {(row, col)}). Raises one ValidationError
+    listing every bad cell, so the user sees all problems at once."""
+    errors: dict[str, str] = {}
+    wanted: dict[tuple[int, int], object] = {}
+    posted: set[tuple[int, int]] = set()
+    for c in cells:
+        name = cell_name(kind, c.row_id, c.col_id)
+        if c.row_id not in row_ids or c.col_id not in col_ids:
+            errors[name] = FOREIGN_CELL_MESSAGE
+            continue
+        try:
+            value = validator(c.raw)
+        except ValidationError as exc:
+            errors[name] = exc.messages[0]
+            continue
+        posted.add((c.row_id, c.col_id))
+        if value is not None:
+            wanted[(c.row_id, c.col_id)] = value
+    if errors:
+        raise ValidationError(errors)
+    return wanted, posted
+
+
+def _as_audit(rows) -> dict[str, str]:
+    """{(row, col): weight} -> {"row:col": "60"} (JSON-safe, stable formatting)."""
+    return {f"{r}:{c}": fmt_weight(w) for (r, c), w in sorted(rows.items())}
+
+
+def save_assessment_lo_matrix(
+    user, offering, cells: list[Cell], *, expected_version: str
+) -> MatrixSaveResult:
+    with transaction.atomic():
+        offering = _lock_offering(offering)
+        ensure_term_open(offering)
+        _check_version(offering, A_LO, expected_version)
+        wanted, posted = _validated_cells(
+            A_LO,
+            cells,
+            row_ids=set(offering.assessments.values_list("id", flat=True)),
+            col_ids=set(offering.learning_outcomes.values_list("id", flat=True)),
+            validator=validate_assessment_lo_cell,
+        )
+        existing = {
+            (w.assessment_id, w.learning_outcome_id): w
+            for w in AssessmentLOWeight.objects.filter(assessment__offering=offering)
+        }
+        before = _as_audit({k: w.weight for k, w in existing.items()})
+
+        to_create, to_update, to_delete = [], [], []
+        for key in posted:
+            current, value = existing.get(key), wanted.get(key)
+            if value is None:
+                if current is not None:
+                    to_delete.append(current.pk)
+            elif current is None:
+                to_create.append(
+                    AssessmentLOWeight(
+                        assessment_id=key[0], learning_outcome_id=key[1], weight=value
+                    )
+                )
+            elif current.weight != value:  # Decimal: 60.00 == 60, so no false updates
+                current.weight = value
+                to_update.append(current)
+
+        AssessmentLOWeight.objects.filter(pk__in=to_delete).delete()
+        AssessmentLOWeight.objects.bulk_create(to_create)
+        AssessmentLOWeight.objects.bulk_update(to_update, ["weight"])
+        result = MatrixSaveResult(len(to_create), len(to_update), len(to_delete))
+
+        if result.changed:
+            after = _as_audit(
+                {
+                    (w.assessment_id, w.learning_outcome_id): w.weight
+                    for w in AssessmentLOWeight.objects.filter(assessment__offering=offering)
+                }
+            )
+            record(
+                user,
+                "assessment_lo.update",
+                offering,
+                before={"cells": before},
+                after={"cells": after},
+                offering=offering,
+            )
+        return result
+
+
+def save_lo_po_matrix(
+    user, offering, cells: list[Cell], *, expected_version: str
+) -> MatrixSaveResult:
+    """Like the assessment grid, plus provenance: a cell whose value a human changes becomes
+    source=MANUAL with no rationale. Unchanged cells keep their source (lint L007 needs that)."""
+    from apps.catalog.selectors import active_po_set
+
+    with transaction.atomic():
+        offering = _lock_offering(offering)
+        ensure_term_open(offering)
+        _check_version(offering, LO_PO, expected_version)
+        po_ids = set(active_po_set(offering.course.program).outcomes.values_list("id", flat=True))
+        wanted, posted = _validated_cells(
+            LO_PO,
+            cells,
+            row_ids=set(offering.learning_outcomes.values_list("id", flat=True)),
+            col_ids=po_ids,
+            validator=validate_lo_po_cell,
+        )
+        existing = {
+            (w.learning_outcome_id, w.program_outcome_id): w
+            for w in LOPOWeight.objects.filter(learning_outcome__offering=offering)
+        }
+        before = _as_audit({k: w.weight for k, w in existing.items()})
+
+        to_create, to_update, to_delete = [], [], []
+        for key in posted:
+            current, value = existing.get(key), wanted.get(key)
+            if value is None:
+                if current is not None:
+                    to_delete.append(current.pk)
+            elif current is None:
+                to_create.append(
+                    LOPOWeight(
+                        learning_outcome_id=key[0],
+                        program_outcome_id=key[1],
+                        weight=value,
+                        source=Source.MANUAL,
+                    )
+                )
+            elif current.weight != value:
+                current.weight, current.source, current.rationale = value, Source.MANUAL, ""
+                to_update.append(current)
+
+        LOPOWeight.objects.filter(pk__in=to_delete).delete()
+        LOPOWeight.objects.bulk_create(to_create)
+        LOPOWeight.objects.bulk_update(to_update, ["weight", "source", "rationale"])
+        result = MatrixSaveResult(len(to_create), len(to_update), len(to_delete))
+
+        if result.changed:
+            after = _as_audit(
+                {
+                    (w.learning_outcome_id, w.program_outcome_id): w.weight
+                    for w in LOPOWeight.objects.filter(learning_outcome__offering=offering)
+                }
+            )
+            record(
+                user,
+                "lo_po.update",
+                offering,
+                before={"cells": before},
+                after={"cells": after},
+                offering=offering,
+            )
+        return result

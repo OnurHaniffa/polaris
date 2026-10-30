@@ -6,6 +6,7 @@ from __future__ import annotations
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -17,8 +18,18 @@ from apps.core.navigation import offering_tabs
 
 from . import services
 from .forms import AssessmentForm, LearningOutcomeForm
+from .matrix import (
+    A_LO,
+    LO_PO,
+    VALIDATORS,
+    GridCell,
+    WeightGrid,
+    overlay_submitted,
+    parse_cell_name,
+    parse_matrix_post,
+)
 from .models import Assessment, LearningOutcome
-from .selectors import assessment_deletion_impact, lo_deletion_impact, setup_context
+from .selectors import assessment_deletion_impact, lo_deletion_impact, mapping_grid, setup_context
 
 
 def _setup_url(offering, anchor: str) -> str:
@@ -218,4 +229,109 @@ def assessment_delete(request, assessment_id, offering, perms_for):
     )
     return _confirm_delete(
         request, offering, perms_for, assessment_deletion_impact(assessment), action
+    )
+
+
+GRID_LABEL = {A_LO: "assessment → LO", LO_PO: "LO → PO"}
+GRID_ANCHOR = {A_LO: "a-lo", LO_PO: "lo-po"}
+
+
+def _cell_errors(exc: ValidationError) -> dict[str, str]:
+    if hasattr(exc, "error_dict"):
+        return {name: messages_[0] for name, messages_ in exc.message_dict.items()}
+    return {"__all__": " ".join(exc.messages)}
+
+
+def _mapping_page(request, offering, perms_for, *, failed=None, status=200):
+    """The Mapping tab. `failed` = (kind, cells, posted_version, exc) after a refused save."""
+    validate_url = reverse("outcomes:validate_cell", kwargs={"offering_id": offering.pk})
+    mapping = mapping_grid(offering, validate_url=validate_url)
+    stale_kind = None
+    if failed is not None:
+        kind, cells, posted_version, exc = failed
+        grid = mapping.grid(kind)
+        if getattr(exc, "code", None) == "stale":
+            stale_kind = kind
+            overlay_submitted(grid, cells)
+            grid.version = (
+                posted_version  # keep the old version: re-submitting stays refused until reload
+            )
+        else:
+            overlay_submitted(grid, cells, _cell_errors(exc))
+    return render(
+        request,
+        "outcomes/mapping.html",
+        {
+            "offering": offering,
+            "perms_for": perms_for,
+            "tabs": offering_tabs(offering, "outcomes:mapping"),
+            "mapping": mapping,
+            "stale_label": GRID_LABEL.get(stale_kind, ""),
+        },
+        status=status,
+    )
+
+
+@login_required
+@require_offering_access()
+def mapping(request, offering, perms_for):
+    return _mapping_page(request, offering, perms_for)
+
+
+def _save_grid(request, offering, perms_for, kind):
+    if "version" not in request.POST:
+        return HttpResponseBadRequest("This form is missing its version. Reload the page.")
+    cells = parse_matrix_post(request.POST, kind)
+    posted_version = request.POST["version"]
+    save = services.save_assessment_lo_matrix if kind == A_LO else services.save_lo_po_matrix
+    try:
+        result = save(request.user, offering, cells, expected_version=posted_version)
+    except ValidationError as exc:
+        code = 409 if getattr(exc, "code", None) == "stale" else 422
+        return _mapping_page(
+            request, offering, perms_for, failed=(kind, cells, posted_version, exc), status=code
+        )
+    if result.changed:
+        messages.success(request, f"Saved the {GRID_LABEL[kind]} weights.")
+    else:
+        messages.info(request, "Nothing changed.")
+    return redirect(
+        reverse("outcomes:mapping", kwargs={"offering_id": offering.pk}) + f"#{GRID_ANCHOR[kind]}"
+    )
+
+
+@login_required
+@require_offering_access(edit=True)
+@require_POST
+def save_assessment_lo(request, offering, perms_for):
+    return _save_grid(request, offering, perms_for, A_LO)
+
+
+@login_required
+@require_offering_access(edit=True)
+@require_POST
+def save_lo_po(request, offering, perms_for):
+    return _save_grid(request, offering, perms_for, LO_PO)
+
+
+@login_required
+@require_offering_access(edit=True)
+@require_POST
+def validate_cell(request, offering, perms_for):
+    """HTMX: check one cell as the user leaves it. Never writes, never reads the database."""
+    name = request.POST.get("name", "")
+    parsed = parse_cell_name(name)
+    if parsed is None or parsed[0] != request.POST.get("kind"):
+        return HttpResponseBadRequest("Unknown cell")
+    kind = parsed[0]
+    raw = request.POST.get(name, "").strip()
+    try:
+        VALIDATORS[kind](raw)
+        error = ""
+    except ValidationError as exc:
+        error = exc.messages[0]
+    cell = GridCell(name=name, value=raw, label=request.POST.get("label", "")[:200], error=error)
+    grid = WeightGrid(kind=kind, caption="", cols=[], rows=[], validate_url=request.path)
+    return render(
+        request, "includes/weight_grid.html#cell", {"cell": cell, "grid": grid, "editable": True}
     )
