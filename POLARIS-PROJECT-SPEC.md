@@ -49,7 +49,7 @@ Read Part 0 every time you sit down to work. Read Parts 1–3 once, carefully, b
 > Update this block at the end of every sprint review. It is the first thing a teammate reads.
 
 **Current sprint:** Sprint 2 (26 Oct – 1 Nov): instructor flows
-**Last updated:** 29 Oct 2026
+**Last updated:** 30 Oct 2026
 
 | Area | Status |
 |---|---|
@@ -59,7 +59,7 @@ Read Part 0 every time you sit down to work. Read Parts 1–3 once, carefully, b
 | Branch protection | ✅ `main` and `develop` need a PR (no approval required, team decision 20 Oct) and green `lint`, `test`, `deploy-check` (from 29 Oct); squash and merge-commit only |
 | Backlog in GitHub Projects | ⏳ S0-02 (needs the `project` scope on Onur's `gh` login) |
 | Django skeleton + Docker + CI | ✅ S0-03 skeleton 20 Oct, `compose.yml`; ✅ S0-05 CI 29 Oct (#11) |
-| Sprint 1 | ✅ models, PO migration, engine, loaders, `seed_demo` (#4, Zeynep, 23 Oct); admin, factories, all Sprint 1 tests, S1-09 design system and login page, `seed_demo` fix (#6–#10, 29 Oct). 245 tests, 94% coverage |
+| Sprint 1 | ✅ models, PO migration, engine, loaders, `seed_demo` (#4, Zeynep, 23 Oct); admin, factories, all Sprint 1 tests, S1-09 design system and login page, `seed_demo` fix (#6–#10, 29 Oct); code-review fixes 30 Oct (PO set per cohort P13, excused grades P6, grades from another offering ignored, prod logging, Docker ports on 127.0.0.1). 248 tests, 94% coverage |
 | Sprint 2 | 🔄 S2-02 permissions + permission matrix (#5, Fatma, 28 Oct). Next: S2-01 login/home, S2-03 head screens |
 | Staging deployment | ⏳ (Sprint 2, S2-08) |
 | Tier 1 features | ⏳ (Sprints 4–7) |
@@ -4793,3 +4793,4 @@ The official wording, from Acıbadem OBS (`obs.acibadem.edu.tr/oibs/bologna/prog
 |---|---|---|---|
 | 1.0 | 16 Oct 2026 | First complete version | Team |
 | 1.1 | 16 Oct 2026 | Repo created. Added §4.8 code map, policy P13 (PO set per cohort), `ExportJob` model, `IngestionJob.Kind.ENROLLMENTS`. Build guide added under `docs/build/` (Part 16) | Team |
+| 1.2 | 30 Oct 2026 | §0.1 status updated after Sprint 0–1 work; §2.5 engine snippet and the Sprint 0–1 build guide synced with the code (P13 selector, P6 excused grades, cross-offering grade filter); prod `LOGGING` keeps Django's loggers; `compose.yml` ports bound to 127.0.0.1 | Onur |
