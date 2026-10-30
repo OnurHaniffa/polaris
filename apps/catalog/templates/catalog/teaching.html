@@ -23,6 +23,7 @@
               </td>
               <td>
                 <span class="small pl-num{% if o.setup.is_complete %} text-success{% endif %}">{{ o.setup.done_count }}/5</span>
+                {% include "includes/lint_list.html#badge" with counts=o.lint only %}
               </td>
             </tr>
           {% endfor %}

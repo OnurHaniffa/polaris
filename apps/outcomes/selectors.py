@@ -8,6 +8,15 @@ from decimal import Decimal
 from apps.catalog.models import ProgramOutcomeSet
 from apps.catalog.selectors import active_po_set
 
+from .lint import (
+    AssessmentInfo,
+    LintCounts,
+    LOInfo,
+    LOPOLink,
+    MappingSnapshot,
+    count_issues,
+    run_lint,
+)
 from .matrix import (
     A_LO,
     LO_PO,
@@ -228,3 +237,68 @@ def mapping_grid(offering, *, validate_url: str = "") -> MappingGrid:
         a_lo_grid=a_lo_grid,
         lo_po_grid=lo_po_grid,
     )
+
+
+def snapshot_mappings(offering_ids) -> dict[int, MappingSnapshot]:
+    ids = list(offering_ids)
+    parts = {i: {"assessments": [], "los": [], "a_lo": set(), "lo_po": []} for i in ids}
+
+    for row in (
+        Assessment.objects.filter(offering_id__in=ids)
+        .order_by("offering_id", "position", "id")
+        .values("id", "offering_id", "name", "course_weight")
+    ):
+        parts[row["offering_id"]]["assessments"].append(
+            AssessmentInfo(row["id"], row["name"], row["course_weight"])
+        )
+
+    for row in (
+        LearningOutcome.objects.filter(offering_id__in=ids)
+        .order_by("offering_id", "number")
+        .values("id", "offering_id", "number")
+    ):
+        parts[row["offering_id"]]["los"].append(LOInfo(row["id"], row["number"]))
+
+    for offering_id, a_id, lo_id in AssessmentLOWeight.objects.filter(
+        assessment__offering_id__in=ids
+    ).values_list("assessment__offering_id", "assessment_id", "learning_outcome_id"):
+        parts[offering_id]["a_lo"].add((a_id, lo_id))
+
+    for offering_id, lo_id, lo_number, po_id, po_number, weight, source in (
+        LOPOWeight.objects.filter(learning_outcome__offering_id__in=ids)
+        .order_by("learning_outcome__number", "program_outcome__number")
+        .values_list(
+            "learning_outcome__offering_id",
+            "learning_outcome_id",
+            "learning_outcome__number",
+            "program_outcome_id",
+            "program_outcome__number",
+            "weight",
+            "source",
+        )
+    ):
+        parts[offering_id]["lo_po"].append(
+            LOPOLink(lo_id, lo_number, po_id, po_number, weight, source)
+        )
+
+    return {
+        i: MappingSnapshot(
+            assessments=tuple(p["assessments"]),
+            los=tuple(p["los"]),
+            assessment_lo=frozenset(p["a_lo"]),
+            lo_po=tuple(p["lo_po"]),
+        )
+        for i, p in parts.items()
+    }
+
+
+def snapshot_mapping(offering) -> MappingSnapshot:
+    return snapshot_mappings([offering.pk])[offering.pk]
+
+
+def lint_counts(offering_ids) -> dict[int, LintCounts]:
+    """Badge numbers for many courses (4 queries in total)."""
+    return {
+        offering_id: count_issues(run_lint(snap), empty=not snap.los)
+        for offering_id, snap in snapshot_mappings(offering_ids).items()
+    }

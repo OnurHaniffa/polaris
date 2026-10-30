@@ -1,0 +1,26 @@
+{# Params: issues (list[LintIssue]). Partial "badge" (not inline): counts (LintCounts). #}
+{% partialdef badge %}
+  {% if counts.empty %}
+    <span class="badge text-bg-light border">Not set up</span>
+  {% elif counts.errors %}
+    <span class="badge text-bg-danger"><span aria-hidden="true">✕</span> {{ counts.errors }} error{{ counts.errors|pluralize }}</span>
+  {% elif counts.warnings %}
+    <span class="badge text-bg-warning"><span aria-hidden="true">⚠</span> {{ counts.warnings }} warning{{ counts.warnings|pluralize }}</span>
+  {% else %}
+    <span class="badge text-bg-success"><span aria-hidden="true">✓</span> Mapping OK</span>
+  {% endif %}
+{% endpartialdef %}
+{% if issues %}
+  <ul class="list-unstyled pl-lint mb-0">
+    {% for issue in issues %}
+      <li class="pl-lint__item pl-lint__item--{{ issue.severity }}">
+        <span class="pl-lint__icon" aria-hidden="true">{% if issue.severity == "error" %}✕{% elif issue.severity == "warning" %}⚠{% else %}ℹ{% endif %}</span>
+        <span class="visually-hidden">{{ issue.severity|capfirst }}:</span>
+        <span class="badge text-bg-light border font-monospace">{{ issue.code }}</span>
+        {{ issue.message }}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="text-success mb-0"><span aria-hidden="true">✓</span> No problems found in this mapping.</p>
+{% endif %}

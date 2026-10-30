@@ -34,6 +34,7 @@ from apps.catalog.selectors import (
 )
 from apps.core.forms import add_service_errors
 from apps.core.navigation import offering_tabs, safe_reverse
+from apps.outcomes.selectors import lint_counts
 
 
 @login_required
@@ -41,8 +42,10 @@ from apps.core.navigation import offering_tabs, safe_reverse
 def teaching(request):
     offerings = list(teaching_offerings(request.user))
     statuses = setup_statuses(o.pk for o in offerings)
-    for o in offerings:  # display-only attribute; templates can't index dicts
+    counts = lint_counts(o.pk for o in offerings)
+    for o in offerings:  # display-only attributes; templates can't index dicts
         o.setup = statuses[o.pk]
+        o.lint = counts[o.pk]
     return render(
         request,
         "catalog/teaching.html",

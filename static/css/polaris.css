@@ -114,3 +114,11 @@
   vertical-align: -2px; margin-right: .25rem; border: 1px solid var(--bs-border-color); }
 .pl-col-tip { text-decoration: underline dotted; cursor: help; }
 .pl-total--zero { color: var(--bs-danger-text-emphasis); }
+
+/* static/css/polaris.css — mapping lint (S2-07) */
+.pl-lint__item { display: flex; gap: .5rem; align-items: baseline; padding: .35rem .6rem;
+  border-left: 3px solid transparent; border-radius: .25rem; margin-bottom: .25rem; }
+.pl-lint__item--error { border-left-color: var(--bs-danger); background: var(--bs-danger-bg-subtle); }
+.pl-lint__item--warning { border-left-color: var(--bs-warning); background: var(--bs-warning-bg-subtle); }
+.pl-lint__item--info { border-left-color: var(--bs-info); background: var(--bs-info-bg-subtle); }
+.pl-lint__icon { width: 1rem; text-align: center; flex-shrink: 0; }

@@ -18,6 +18,7 @@ from apps.core.navigation import offering_tabs
 
 from . import services
 from .forms import AssessmentForm, LearningOutcomeForm
+from .lint import run_lint
 from .matrix import (
     A_LO,
     LO_PO,
@@ -29,7 +30,13 @@ from .matrix import (
     parse_matrix_post,
 )
 from .models import Assessment, LearningOutcome
-from .selectors import assessment_deletion_impact, lo_deletion_impact, mapping_grid, setup_context
+from .selectors import (
+    assessment_deletion_impact,
+    lo_deletion_impact,
+    mapping_grid,
+    setup_context,
+    snapshot_mapping,
+)
 
 
 def _setup_url(offering, anchor: str) -> str:
@@ -267,6 +274,7 @@ def _mapping_page(request, offering, perms_for, *, failed=None, status=200):
             "tabs": offering_tabs(offering, "outcomes:mapping"),
             "mapping": mapping,
             "stale_label": GRID_LABEL.get(stale_kind, ""),
+            "issues": run_lint(snapshot_mapping(offering)),
         },
         status=status,
     )

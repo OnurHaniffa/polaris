@@ -14,7 +14,10 @@
     </div>
   {% endif %}
 
-  {# S2-07 puts the mapping checks (lint) here. #}
+  <section id="lint" class="mb-4" aria-labelledby="lint-title">
+    <h2 class="h6 mb-2" id="lint-title">Mapping checks</h2>
+    {% include "includes/lint_list.html" with issues=issues only %}
+  </section>
 
   <div class="row g-4">
     <div class="col-xxl-5">
