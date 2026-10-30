@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}My courses{% endblock %}
+{% block content %}
+  <h1 class="h3 mb-4">My courses</h1>
+  {% if offerings %}
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr><th scope="col">Course</th><th scope="col">Term</th><th scope="col">Section</th>
+              <th scope="col" class="text-end">Students</th><th scope="col">Status</th></tr>
+        </thead>
+        <tbody>
+          {% for o in offerings %}
+            <tr>
+              <td><a href="{% url 'catalog:offering' offering_id=o.pk %}">{{ o.course.code }} · {{ o.course.title }}</a></td>
+              <td>{{ o.term.name }}</td>
+              <td>{{ o.section }}</td>
+              <td class="text-end tabular-nums">{{ o.student_count }}</td>
+              <td>
+                {% if o.term.status == "closed" %}<span class="badge text-bg-secondary">🔒 Closed</span>
+                {% elif o.term.status == "planned" %}<span class="badge text-bg-info">Planned</span>
+                {% else %}<span class="badge text-bg-success">Open</span>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {% include "includes/empty_state.html" with title="You're not teaching any courses yet" message="When the department head assigns you to a course offering, it appears here." action_url=department_offerings_url action_label="See all the department's offerings" only %}
+  {% endif %}
+{% endblock %}

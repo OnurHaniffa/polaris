@@ -9,6 +9,7 @@ urlpatterns = [
     path("healthz", core_views.healthz, name="healthz"),
     path("styleguide/", core_views.styleguide, name="styleguide"),
     path("", include("apps.accounts.urls")),
+    path("", include("apps.catalog.urls")),
     path("admin/", admin.site.urls),
 ]
 

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ offering.course.code }}{% endblock %}
+{% block content %}
+  {% include "includes/offering_header.html" with offering=offering tabs=tabs perms_for=perms_for only %}
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card"><div class="card-body">
+        <h2 class="h6 text-body-secondary">Students enrolled</h2>
+        <p class="display-6 mb-0 tabular-nums">{{ student_count }}</p>
+      </div></div>
+    </div>
+    <div class="col-md-8">
+      <div class="card"><div class="card-body">
+        <h2 class="h6 text-body-secondary">Instructors</h2>
+        <ul class="list-unstyled mb-0">
+          {% for person in offering.instructors.all %}<li>{{ person.get_full_name }}</li>
+          {% empty %}<li class="text-body-secondary">No instructor assigned yet.</li>{% endfor %}
+        </ul>
+      </div></div>
+    </div>
+  </div>
+{% endblock %}

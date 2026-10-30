@@ -40,7 +40,7 @@ def test_login_with_email_then_home(client, user):
     assert response.status_code == 302
     assert response["Location"] == "/"
     home = client.get("/")
-    assert b"Welcome to POlaris" in home.content
+    assert b"Welcome to POlaris" in home.content  # no role yet → welcome page
     assert b"X-CSRFToken" in home.content  # HTMX gets the CSRF token from <body>
 
 

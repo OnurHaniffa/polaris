@@ -21,31 +21,7 @@
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   <a class="visually-hidden-focusable" href="#main">Skip to content</a>
 
-  <nav class="navbar navbar-expand-md pl-navbar">
-    <div class="container-fluid">
-      <a class="navbar-brand fw-semibold" href="{% url 'home' %}">PO<span class="pl-accent">laris</span></a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#pl-nav"
-              aria-controls="pl-nav" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="pl-nav">
-        {# S2-01 fills this block with role-aware links from the navigation context processor. #}
-        <ul class="navbar-nav me-auto">{% block nav %}{% endblock %}</ul>
-        <ul class="navbar-nav align-items-md-center gap-2">
-          <li class="nav-item">
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-pl-theme-toggle
-                    aria-label="Switch between light and dark mode">◐ Theme</button>
-          </li>
-          {% if user.is_authenticated %}
-            <li class="nav-item"><span class="navbar-text small">{{ user.get_full_name|default:user.email }}</span></li>
-            {% if user.is_superuser %}
-              <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
-            {% endif %}
-          {% endif %}
-        </ul>
-      </div>
-    </div>
-  </nav>
+  {% include "includes/navbar.html" %}
 
   <main id="main" class="container-xxl py-4">
     {% block breadcrumbs %}{% endblock %}

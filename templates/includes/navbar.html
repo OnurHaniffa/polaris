@@ -1,0 +1,56 @@
+<nav class="navbar navbar-expand-md pl-navbar" aria-label="Main">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-semibold" href="{% url 'home' %}">PO<span class="pl-accent">laris</span></a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#pl-nav"
+            aria-controls="pl-nav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="pl-nav">
+      {# Links come from apps.core.navigation: one list per active role, missing pages left out. #}
+      <ul class="navbar-nav me-auto">
+        {% for item in nav_items %}
+          <li class="nav-item">
+            <a class="nav-link{% if item.active %} active{% endif %}" href="{{ item.url }}"
+               {% if item.active %}aria-current="page"{% endif %}>{{ item.label }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+      <ul class="navbar-nav align-items-md-center gap-2">
+        <li class="nav-item">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-pl-theme-toggle
+                  aria-label="Switch between light and dark mode">◐ Theme</button>
+        </li>
+        {% if user.is_authenticated %}
+          <li class="nav-item dropdown">
+            <button type="button" class="nav-link dropdown-toggle btn btn-link" data-bs-toggle="dropdown" aria-expanded="false">
+              {{ user.get_full_name|default:user.email }}
+              {% if active_role_label %}<span class="badge text-bg-secondary ms-1">{{ active_role_label }}</span>{% endif %}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              {% if available_roles|length > 1 %}
+                <li><h6 class="dropdown-header">View as</h6></li>
+                {% for value, label in available_roles %}
+                  <li>
+                    <form method="post" action="{% url 'accounts:switch_role' %}">
+                      {% csrf_token %}
+                      <button class="dropdown-item{% if value == active_role %} active{% endif %}"
+                              name="role" value="{{ value }}"
+                              {% if value == active_role %}aria-current="true"{% endif %}>{{ label }}</button>
+                    </form>
+                  </li>
+                {% endfor %}
+                <li><hr class="dropdown-divider"></li>
+              {% endif %}
+              <li>
+                <form method="post" action="{% url 'accounts:logout' %}">
+                  {% csrf_token %}
+                  <button class="dropdown-item">Log out</button>
+                </form>
+              </li>
+            </ul>
+          </li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>

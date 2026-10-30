@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+{% block content %}
+  <div class="mx-auto" style="max-width: 40rem">
+    <h1 class="h3">Welcome to POlaris, {{ request.user.first_name|default:request.user.email }}</h1>
+    {% if active_role %}
+      <p class="lead">Your {{ active_role_label|lower }} pages are being built. They will appear here automatically.</p>
+    {% else %}
+      <p class="lead">Your account isn't linked to a program yet.</p>
+      <p>Ask the department head to add you. Until then there is nothing for you to see here.</p>
+    {% endif %}
+  </div>
+{% endblock %}

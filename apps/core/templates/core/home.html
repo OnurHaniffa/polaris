@@ -1,6 +1,0 @@
-{% extends "base.html" %}
-{% block title %}Home{% endblock %}
-{% block content %}
-  {% url 'admin:index' as admin_url %}
-  {% include "includes/empty_state.html" with title="Welcome to POlaris" message="Your role-based home page arrives in Sprint 2. Until then, explore the data in the admin." action_url=admin_url action_label="Open the admin" only %}
-{% endblock %}

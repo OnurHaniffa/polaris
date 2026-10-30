@@ -1,0 +1,17 @@
+{# Use with: offering, tabs, perms_for. Every offering page shows the same header. #}
+<header class="mb-4">
+  <p class="text-body-secondary mb-1">{{ offering.term.name }} · Section {{ offering.section }}</p>
+  <h1 class="h3 mb-2">{{ offering.course.code }} · {{ offering.course.title }}
+    {% if perms_for.is_closed %}
+      <span class="badge text-bg-secondary align-middle fs-6">🔒 Term closed: read-only</span>
+    {% endif %}
+  </h1>
+  <ul class="nav nav-tabs">
+    {% for tab in tabs %}
+      <li class="nav-item">
+        <a class="nav-link{% if tab.active %} active{% endif %}" href="{{ tab.url }}"
+           {% if tab.active %}aria-current="page"{% endif %}>{{ tab.label }}</a>
+      </li>
+    {% endfor %}
+  </ul>
+</header>

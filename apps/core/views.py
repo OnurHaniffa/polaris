@@ -3,7 +3,15 @@ from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.db import connection
 from django.http import Http404, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.urls import NoReverseMatch
+
+ROLE_HOME = {
+    "head": ("reports:department", "catalog:offerings"),
+    "instructor": ("catalog:teaching",),
+    "student": ("student:profile",),
+    "admin": ("catalog:offerings", "admin:index"),
+}
 
 
 def healthz(request):
@@ -23,8 +31,13 @@ def healthz(request):
 
 @login_required
 def home(request):
-    """Placeholder until S2-01, which replaces it with the role-based redirect."""
-    return render(request, "core/home.html")
+    """Send each user to the page that fits their active role (B1 AC 1)."""
+    for name in ROLE_HOME.get(request.active_role, ()):
+        try:
+            return redirect(name)
+        except NoReverseMatch:
+            continue
+    return render(request, "core/welcome.html")
 
 
 def styleguide(request):

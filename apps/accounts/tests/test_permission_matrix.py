@@ -48,6 +48,7 @@ from django.urls import URLPattern, URLResolver, get_resolver, reverse
 from apps.accounts.tests.permission_world import (
     PERSONAS,
     PUBLIC,
+    READ_OFFERING,
     World,
     build_world,
 )
@@ -79,16 +80,42 @@ class Row:
         return f"{self.name}[{self.scenario}]" if self.scenario else self.name
 
 
-# S1-09 pages. "home" is a placeholder until S2-01 makes it the role-based redirect.
-LOGGED_IN = {p: (302 if p == "anonymous" else 200) for p in PERSONAS}
 NOWHERE = {p: 404 for p in PERSONAS}  # the style guide only exists while DEBUG is on
+
+# "home" redirects to the active role's home page (S2-01). Students get the welcome page
+# until S3-02 builds their profile; heads until S2-03 builds the offerings list.
+HOME = {
+    "anonymous": 302,
+    "student": 200,
+    "other_student": 200,
+    "instructor": 302,
+    "other_instructor": 302,
+    "head": 200,
+    "other_head": 200,
+    "admin": 302,
+}
+# require_role("instructor", "head"); superusers always pass.
+TEACHING = {
+    **NOWHERE,
+    "anonymous": 302,
+    "instructor": 200,
+    "other_instructor": 200,
+    "head": 200,
+    "other_head": 200,
+    "admin": 200,
+}
 
 ROWS: list[Row] = [
     Row("healthz", "GET", PUBLIC),
-    Row("home", "GET", LOGGED_IN),
+    Row("home", "GET", HOME),
     Row("styleguide", "GET", NOWHERE),
-    Row("accounts:login", "GET", PUBLIC),
+    # Already logged in → sent home instead of seeing the form again.
+    Row("accounts:login", "GET", {p: (200 if p == "anonymous" else 302) for p in PERSONAS}),
     Row("accounts:logout", "POST", {p: 302 for p in PERSONAS}),
+    Row("accounts:switch_role", "POST", {p: 302 for p in PERSONAS}),
+    Row("catalog:teaching", "GET", TEACHING),
+    Row("catalog:offering", "GET", READ_OFFERING, offering_kwargs("open_offering"), "open"),
+    Row("catalog:offering", "GET", READ_OFFERING, offering_kwargs("closed_offering"), "closed"),
 ]
 
 
