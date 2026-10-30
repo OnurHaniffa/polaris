@@ -3,6 +3,8 @@
 from collections import defaultdict
 from decimal import Decimal
 
+from django.db.models import F
+
 from apps.catalog.models import Enrollment, Term
 from apps.catalog.selectors import po_set_ids_for_students
 from apps.grading.models import Grade
@@ -29,16 +31,23 @@ def _counted_enrollments(student, *, include_open_terms, up_to_term):
 
 
 def _published_grades(enrollment_ids):
+    """Published scores, and the assessments each enrollment is excused from (P6).
+
+    Only grades whose assessment belongs to the enrollment's own offering count: a grade
+    pointing at another course's assessment (possible through the admin) is ignored."""
     rows = Grade.objects.filter(
         enrollment_id__in=enrollment_ids,
         assessment__published_at__isnull=False,
-        published_score__isnull=False,
-        published_is_excused=False,
-    ).values_list("enrollment_id", "assessment_id", "published_score")
+        assessment__offering_id=F("enrollment__offering_id"),
+    ).values_list("enrollment_id", "assessment_id", "published_score", "published_is_excused")
     grades = defaultdict(dict)
-    for enrollment_id, assessment_id, score in rows:
-        grades[enrollment_id][assessment_id] = score
-    return grades
+    excused = defaultdict(set)
+    for enrollment_id, assessment_id, score, is_excused in rows:
+        if is_excused:
+            excused[enrollment_id].add(assessment_id)
+        elif score is not None:
+            grades[enrollment_id][assessment_id] = score
+    return grades, excused
 
 
 def _offering_structure(offering_ids):
@@ -68,10 +77,11 @@ def _offering_structure(offering_ids):
     return max_scores, a_lo, lo_po
 
 
-def _inputs(offering_id, grades, max_scores, a_lo, lo_po, po_set_id):
+def _inputs(offering_id, grades, excused, max_scores, a_lo, lo_po, po_set_id):
     return OfferingInputs(
         offering_id=offering_id,
         grades=grades,
+        excused=frozenset(excused),
         max_scores=max_scores[offering_id],
         assessment_lo_edges=tuple(a_lo[offering_id]),
         lo_po_edges=tuple(edge for set_id, edge in lo_po[offering_id] if set_id == po_set_id),
@@ -85,7 +95,7 @@ def load_student_inputs(student, *, include_open_terms=True, up_to_term=None):
     if not enrollments:
         return []
     offering_ids = [e.offering_id for e in enrollments]
-    grades = _published_grades([e.id for e in enrollments])
+    grades, excused = _published_grades([e.id for e in enrollments])
     max_scores, a_lo, lo_po = _offering_structure(offering_ids)
 
     po_sets = {}
@@ -95,7 +105,15 @@ def load_student_inputs(student, *, include_open_terms=True, up_to_term=None):
         if program.id not in po_sets:
             po_sets[program.id] = po_set_ids_for_students([student.id], program)[student.id]
         result.append(
-            _inputs(e.offering_id, grades[e.id], max_scores, a_lo, lo_po, po_sets[program.id])
+            _inputs(
+                e.offering_id,
+                grades[e.id],
+                excused[e.id],
+                max_scores,
+                a_lo,
+                lo_po,
+                po_sets[program.id],
+            )
         )
     return result
 
@@ -106,12 +124,20 @@ def load_offering_inputs(offering):
     )
     if not enrollments:
         return {}
-    grades = _published_grades([e.id for e in enrollments])
+    grades, excused = _published_grades([e.id for e in enrollments])
     max_scores, a_lo, lo_po = _offering_structure([offering.id])
     program = offering.course.program
 
     po_set_ids = po_set_ids_for_students([e.student_id for e in enrollments], program)
     return {
-        e.id: _inputs(offering.id, grades[e.id], max_scores, a_lo, lo_po, po_set_ids[e.student_id])
+        e.id: _inputs(
+            offering.id,
+            grades[e.id],
+            excused[e.id],
+            max_scores,
+            a_lo,
+            lo_po,
+            po_set_ids[e.student_id],
+        )
         for e in enrollments
     }

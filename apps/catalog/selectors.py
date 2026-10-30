@@ -17,16 +17,26 @@ def active_po_set(program):
 
 
 def po_set_ids_for_students(student_ids, program):
-    """Policy P13 for many students at once: {student_id: po_set_id}."""
+    """Policy P13 for many students at once: {student_id: po_set_id}.
+
+    Candidates are the active set and the older sets it replaced. A set that is newer than
+    the active one (or as new) and not active is a draft being edited: it counts only once
+    the head activates it. A student gets the newest candidate whose effective_from_year is
+    <= their cohort year; a cohort older than every candidate gets the oldest one; a student
+    without a cohort year gets the active set."""
     sets = list(
         ProgramOutcomeSet.objects.filter(program=program)
         .order_by("-effective_from_year", "-id")
         .values_list("id", "effective_from_year", "is_active")
     )
 
-    active_ids = [set_id for set_id, _, is_active in sets if is_active]
-    if not active_ids:
+    active = [(set_id, year) for set_id, year, is_active in sets if is_active]
+    if not active:
         raise ProgramOutcomeSet.DoesNotExist(f"{program} has no active PO set")
+    active_id, active_year = active[0]
+    candidates = [
+        (set_id, year) for set_id, year, is_active in sets if is_active or year < active_year
+    ]
 
     cohorts = dict(
         ProgramMembership.objects.filter(
@@ -37,11 +47,12 @@ def po_set_ids_for_students(student_ids, program):
     )
 
     def pick(cohort_year):
-        if cohort_year is not None:
-            for set_id, year, _ in sets:
-                if year <= cohort_year:
-                    return set_id
-        return active_ids[0]
+        if cohort_year is None:
+            return active_id
+        for set_id, year in candidates:
+            if year <= cohort_year:
+                return set_id
+        return candidates[-1][0]  # older than every set: the oldest one (P13)
 
     return {student_id: pick(cohorts.get(student_id)) for student_id in student_ids}
 

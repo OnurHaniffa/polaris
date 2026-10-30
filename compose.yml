@@ -5,7 +5,7 @@ services:
       POSTGRES_USER: polaris
       POSTGRES_PASSWORD: polaris
       POSTGRES_DB: polaris
-    ports: ["5432:5432"]
+    ports: ["127.0.0.1:5432:5432"]  # this laptop only
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U polaris"]
@@ -13,6 +13,6 @@ services:
       retries: 10
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    ports: ["127.0.0.1:6379:6379"]  # this laptop only
 volumes:
   pgdata:

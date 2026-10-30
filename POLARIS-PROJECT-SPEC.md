@@ -441,6 +441,9 @@ class OfferingInputs:
     max_scores: Mapping[int, Decimal]        # assessment_id -> max_score
     assessment_lo_edges: tuple[Edge, ...]    # source=assessment_id, target=lo_id, weight=%
     lo_po_edges: tuple[Edge, ...]            # source=lo_id, target=po_id, weight=1..5
+    # P6: assessments this student is excused from. They drop out of the LO entirely, weight
+    # included, so an excused piece of work never leaves the LO looking incomplete.
+    excused: frozenset = frozenset()
 
 
 @dataclass(frozen=True)
@@ -459,7 +462,8 @@ def compute_student_profile(offerings: Iterable[OfferingInputs]) -> StudentProfi
 
     for off in offerings:
         normalised = {a: normalise(raw, off.max_scores[a]) for a, raw in off.grades.items()}
-        for lo_id, ns in propagate(normalised, off.assessment_lo_edges).items():
+        a_lo_edges = [e for e in off.assessment_lo_edges if e.source not in off.excused]
+        for lo_id, ns in propagate(normalised, a_lo_edges).items():
             key = (off.offering_id, lo_id)
             lo_scores[key] = ns
             if ns.score is not None:
@@ -3802,6 +3806,7 @@ MAILERS = {"default": {"BACKEND": _email["EMAIL_BACKEND"], "OPTIONS": _options}}
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="POlaris <noreply@example.com>")  # noqa: F405
 LOGGING = {
     "version": 1,
+    "disable_existing_loggers": False,  # keep Django's own loggers (500 tracebacks)
     "handlers": {"console": {"class": "logging.StreamHandler"}},
     "root": {"handlers": ["console"], "level": "INFO"},
 }
@@ -3840,7 +3845,7 @@ services:
       POSTGRES_USER: polaris
       POSTGRES_PASSWORD: polaris
       POSTGRES_DB: polaris
-    ports: ["5432:5432"]
+    ports: ["127.0.0.1:5432:5432"]  # this laptop only
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U polaris"]
@@ -3848,7 +3853,7 @@ services:
       retries: 10
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    ports: ["127.0.0.1:6379:6379"]  # this laptop only
 volumes:
   pgdata:
 ```

@@ -26,6 +26,7 @@ MAILERS = {"default": {"BACKEND": _email["EMAIL_BACKEND"], "OPTIONS": _options}}
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="POlaris <noreply@example.com>")  # noqa: F405
 LOGGING = {
     "version": 1,
+    "disable_existing_loggers": False,  # keep Django's own loggers (500 tracebacks)
     "handlers": {"console": {"class": "logging.StreamHandler"}},
     "root": {"handlers": ["console"], "level": "INFO"},
 }

@@ -94,6 +94,19 @@ def test_excused_published_grade_is_skipped(elif_data):
     assert elif_data.project.id not in inputs.grades
     profile = compute_student_profile([inputs])
     assert display(profile.po_scores[elif_data.po2.id].score) == "90.0"  # midterm only
+    # the excused project drops out of coverage too, so the LO isn't "incomplete" forever
+    assert profile.lo_scores[(elif_data.offering.id, elif_data.lo2.id)].coverage == 1
+
+
+def test_grade_for_another_courses_assessment_is_ignored(elif_data):
+    """A grade whose assessment belongs to a different offering (only possible through the
+    admin) must not crash the profile or count anywhere."""
+    other = AssessmentFactory(max_score=D(100))
+    GradeFactory(assessment=other, enrollment=elif_data.enrollment, score=D(10), published=True)
+    [inputs] = load_student_inputs(elif_data.student)
+    assert other.id not in inputs.grades
+    profile = compute_student_profile([inputs])
+    assert display(profile.po_scores[elif_data.po1.id].score) == "85.0"
 
 
 def test_dropped_enrollment_does_not_count(elif_data):
@@ -164,13 +177,15 @@ def test_up_to_term_cuts_later_terms(elif_data):
 
 
 def test_po_set_follows_cohort(elif_data):
-    """P13: a 2026 curriculum appears with a new PO. Elif (cohort 2023) keeps the old set,
-    so links to the new set's PO are ignored for her; a 2026 student gets the new set."""
+    """P13: the head activates a 2026 curriculum with a new PO. Elif (cohort 2023) keeps the
+    old set, so links to the new set's PO are ignored for her; a 2026 student gets the new set."""
+    elif_data.po_set.is_active = False
+    elif_data.po_set.save()
     new_set = ProgramOutcomeSetFactory(
         program=elif_data.program,
         label="2026 curriculum",
         effective_from_year=2026,
-        is_active=False,
+        is_active=True,
     )
     new_po = ProgramOutcomeFactory(po_set=new_set, number=1)
     LOPOWeightFactory(learning_outcome=elif_data.lo1, program_outcome=new_po, weight=5)

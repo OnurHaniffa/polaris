@@ -70,6 +70,9 @@ class OfferingInputs:
     max_scores: Mapping[int, Decimal]
     assessment_lo_edges: tuple[Edge, ...]
     lo_po_edges: tuple[Edge, ...]
+    # P6: assessments this student is excused from. They drop out of the LO entirely, weight
+    # included, so an excused piece of work never leaves the LO looking incomplete.
+    excused: frozenset = frozenset()
 
 
 @dataclass(frozen=True)
@@ -87,7 +90,8 @@ def compute_student_profile(offerings: Iterable[OfferingInputs]) -> StudentProfi
 
     for off in offerings:
         normalised = {a: normalise(raw, off.max_scores[a]) for a, raw in off.grades.items()}
-        for lo_id, ns in propagate(normalised, off.assessment_lo_edges).items():
+        a_lo_edges = [e for e in off.assessment_lo_edges if e.source not in off.excused]
+        for lo_id, ns in propagate(normalised, a_lo_edges).items():
             key = (off.offering_id, lo_id)
             lo_scores[key] = ns
             if ns.score is not None:

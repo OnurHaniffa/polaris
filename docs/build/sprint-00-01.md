@@ -849,6 +849,7 @@ MAILERS = {"default": {"BACKEND": _email["EMAIL_BACKEND"], "OPTIONS": _options}}
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="POlaris <noreply@example.com>")  # noqa: F405
 LOGGING = {
     "version": 1,
+    "disable_existing_loggers": False,  # keep Django's own loggers (500 tracebacks)
     "handlers": {"console": {"class": "logging.StreamHandler"}},
     "root": {"handlers": ["console"], "level": "INFO"},
 }
@@ -3280,6 +3281,9 @@ class OfferingInputs:
     max_scores: Mapping[int, Decimal]  # assessment_id -> max_score
     assessment_lo_edges: tuple[Edge, ...]  # source=assessment_id, target=lo_id, weight=%
     lo_po_edges: tuple[Edge, ...]  # source=lo_id, target=po_id, weight=1..5
+    # P6: assessments this student is excused from. They drop out of the LO entirely, weight
+    # included, so an excused piece of work never leaves the LO looking incomplete.
+    excused: frozenset = frozenset()
 
 
 @dataclass(frozen=True)
@@ -3298,7 +3302,8 @@ def compute_student_profile(offerings: Iterable[OfferingInputs]) -> StudentProfi
 
     for off in offerings:
         normalised = {a: normalise(raw, off.max_scores[a]) for a, raw in off.grades.items()}
-        for lo_id, ns in propagate(normalised, off.assessment_lo_edges).items():
+        a_lo_edges = [e for e in off.assessment_lo_edges if e.source not in off.excused]
+        for lo_id, ns in propagate(normalised, a_lo_edges).items():
             key = (off.offering_id, lo_id)
             lo_scores[key] = ns
             if ns.score is not None:
@@ -3964,31 +3969,42 @@ def active_po_set(program):
 
 
 def po_set_ids_for_students(student_ids, program):
-    """Policy P13 for many students at once, in two queries: {student_id: po_set_id}.
+    """Policy P13 for many students at once: {student_id: po_set_id}.
 
-    A student is measured against the newest set whose effective_from_year ≤ their cohort
-    year. Fallback: the active set, when the student has no student membership in the
-    program or their cohort is older than every set."""
+    Candidates are the active set and the older sets it replaced. A set that is newer than
+    the active one (or as new) and not active is a draft being edited: it counts only once
+    the head activates it. A student gets the newest candidate whose effective_from_year is
+    <= their cohort year; a cohort older than every candidate gets the oldest one; a student
+    without a cohort year gets the active set."""
     sets = list(
         ProgramOutcomeSet.objects.filter(program=program)
         .order_by("-effective_from_year", "-id")
         .values_list("id", "effective_from_year", "is_active")
     )
-    active_ids = [set_id for set_id, _, is_active in sets if is_active]
-    if not active_ids:
+
+    active = [(set_id, year) for set_id, year, is_active in sets if is_active]
+    if not active:
         raise ProgramOutcomeSet.DoesNotExist(f"{program} has no active PO set")
+    active_id, active_year = active[0]
+    candidates = [
+        (set_id, year) for set_id, year, is_active in sets if is_active or year < active_year
+    ]
+
     cohorts = dict(
         ProgramMembership.objects.filter(
-            user_id__in=student_ids, program=program, role=ProgramMembership.Role.STUDENT
+            user_id__in=student_ids,
+            program=program,
+            role=ProgramMembership.Role.STUDENT,
         ).values_list("user_id", "cohort_year")
     )
 
     def pick(cohort_year):
-        if cohort_year is not None:
-            for set_id, year, _ in sets:  # newest first
-                if year <= cohort_year:
-                    return set_id
-        return active_ids[0]
+        if cohort_year is None:
+            return active_id
+        for set_id, year in candidates:
+            if year <= cohort_year:
+                return set_id
+        return candidates[-1][0]  # older than every set: the oldest one (P13)
 
     return {student_id: pick(cohorts.get(student_id)) for student_id in student_ids}
 
@@ -4017,6 +4033,8 @@ Policies applied here:
 from collections import defaultdict
 from decimal import Decimal
 
+from django.db.models import F
+
 from apps.catalog.models import Enrollment, Term
 from apps.catalog.selectors import po_set_ids_for_students
 from apps.grading.models import Grade
@@ -4044,17 +4062,23 @@ def _counted_enrollments(student, *, include_open_terms, up_to_term):
 
 
 def _published_grades(enrollment_ids):
-    """{enrollment_id: {assessment_id: raw published mark}} for published, non-excused grades."""
+    """Published scores, and the assessments each enrollment is excused from (P6).
+
+    Only grades whose assessment belongs to the enrollment's own offering count: a grade
+    pointing at another course's assessment (possible through the admin) is ignored."""
     rows = Grade.objects.filter(
         enrollment_id__in=enrollment_ids,
         assessment__published_at__isnull=False,
-        published_score__isnull=False,
-        published_is_excused=False,
-    ).values_list("enrollment_id", "assessment_id", "published_score")
+        assessment__offering_id=F("enrollment__offering_id"),
+    ).values_list("enrollment_id", "assessment_id", "published_score", "published_is_excused")
     grades = defaultdict(dict)
-    for enrollment_id, assessment_id, score in rows:
-        grades[enrollment_id][assessment_id] = score
-    return grades
+    excused = defaultdict(set)
+    for enrollment_id, assessment_id, score, is_excused in rows:
+        if is_excused:
+            excused[enrollment_id].add(assessment_id)
+        elif score is not None:
+            grades[enrollment_id][assessment_id] = score
+    return grades, excused
 
 
 def _offering_structure(offering_ids):
@@ -4085,10 +4109,11 @@ def _offering_structure(offering_ids):
     return max_scores, a_lo, lo_po
 
 
-def _inputs(offering_id, grades, max_scores, a_lo, lo_po, po_set_id):
+def _inputs(offering_id, grades, excused, max_scores, a_lo, lo_po, po_set_id):
     return OfferingInputs(
         offering_id=offering_id,
         grades=grades,
+        excused=frozenset(excused),
         max_scores=max_scores[offering_id],
         assessment_lo_edges=tuple(a_lo[offering_id]),
         lo_po_edges=tuple(edge for set_id, edge in lo_po[offering_id] if set_id == po_set_id),
@@ -4096,48 +4121,56 @@ def _inputs(offering_id, grades, max_scores, a_lo, lo_po, po_set_id):
 
 
 def load_student_inputs(student, *, include_open_terms=True, up_to_term=None):
-    """Everything the engine needs to compute one student's profile.
-
-    up_to_term: only offerings whose term started on or before this term (used by the
-    T1.5 trend chart: "my profile as it was at the end of each term")."""
     enrollments = _counted_enrollments(
         student, include_open_terms=include_open_terms, up_to_term=up_to_term
     )
     if not enrollments:
         return []
     offering_ids = [e.offering_id for e in enrollments]
-    grades = _published_grades([e.id for e in enrollments])
+    grades, excused = _published_grades([e.id for e in enrollments])
     max_scores, a_lo, lo_po = _offering_structure(offering_ids)
 
-    po_sets = {}  # program_id -> PO set id for this student (P13)
+    po_sets = {}
     result = []
     for e in sorted(enrollments, key=lambda e: e.offering_id):
         program = e.offering.course.program
         if program.id not in po_sets:
             po_sets[program.id] = po_set_ids_for_students([student.id], program)[student.id]
         result.append(
-            _inputs(e.offering_id, grades[e.id], max_scores, a_lo, lo_po, po_sets[program.id])
+            _inputs(
+                e.offering_id,
+                grades[e.id],
+                excused[e.id],
+                max_scores,
+                a_lo,
+                lo_po,
+                po_sets[program.id],
+            )
         )
     return result
 
 
 def load_offering_inputs(offering):
-    """{enrollment_id: OfferingInputs} for every enrolled student of one offering.
-
-    Used by class-level views (B9). Retake filtering (P9) does not apply: the instructor
-    sees everyone currently in the class."""
     enrollments = list(
         Enrollment.objects.filter(offering=offering, status=Enrollment.Status.ENROLLED)
     )
     if not enrollments:
         return {}
-    grades = _published_grades([e.id for e in enrollments])
+    grades, excused = _published_grades([e.id for e in enrollments])
     max_scores, a_lo, lo_po = _offering_structure([offering.id])
     program = offering.course.program
 
     po_set_ids = po_set_ids_for_students([e.student_id for e in enrollments], program)
     return {
-        e.id: _inputs(offering.id, grades[e.id], max_scores, a_lo, lo_po, po_set_ids[e.student_id])
+        e.id: _inputs(
+            offering.id,
+            grades[e.id],
+            excused[e.id],
+            max_scores,
+            a_lo,
+            lo_po,
+            po_set_ids[e.student_id],
+        )
         for e in enrollments
     }
 ```
@@ -4245,6 +4278,19 @@ def test_excused_published_grade_is_skipped(elif_data):
     assert elif_data.project.id not in inputs.grades
     profile = compute_student_profile([inputs])
     assert display(profile.po_scores[elif_data.po2.id].score) == "90.0"  # midterm only
+    # the excused project drops out of coverage too, so the LO isn't "incomplete" forever
+    assert profile.lo_scores[(elif_data.offering.id, elif_data.lo2.id)].coverage == 1
+
+
+def test_grade_for_another_courses_assessment_is_ignored(elif_data):
+    """A grade whose assessment belongs to a different offering (only possible through the
+    admin) must not crash the profile or count anywhere."""
+    other = AssessmentFactory(max_score=D(100))
+    GradeFactory(assessment=other, enrollment=elif_data.enrollment, score=D(10), published=True)
+    [inputs] = load_student_inputs(elif_data.student)
+    assert other.id not in inputs.grades
+    profile = compute_student_profile([inputs])
+    assert display(profile.po_scores[elif_data.po1.id].score) == "85.0"
 
 
 def test_dropped_enrollment_does_not_count(elif_data):
@@ -4315,13 +4361,15 @@ def test_up_to_term_cuts_later_terms(elif_data):
 
 
 def test_po_set_follows_cohort(elif_data):
-    """P13: a 2026 curriculum appears with a new PO. Elif (cohort 2023) keeps the old set,
-    so links to the new set's PO are ignored for her; a 2026 student gets the new set."""
+    """P13: the head activates a 2026 curriculum with a new PO. Elif (cohort 2023) keeps the
+    old set, so links to the new set's PO are ignored for her; a 2026 student gets the new set."""
+    elif_data.po_set.is_active = False
+    elif_data.po_set.save()
     new_set = ProgramOutcomeSetFactory(
         program=elif_data.program,
         label="2026 curriculum",
         effective_from_year=2026,
-        is_active=False,
+        is_active=True,
     )
     new_po = ProgramOutcomeFactory(po_set=new_set, number=1)
     LOPOWeightFactory(learning_outcome=elif_data.lo1, program_outcome=new_po, weight=5)
@@ -4392,8 +4440,17 @@ def test_po_set_fallbacks():
     MembershipFactory(user=mid, program=program, cohort_year=2022)
 
     ids = po_set_ids_for_students([veteran.id, stranger.id, mid.id], program)
-    assert ids == {veteran.id: new.id, stranger.id: new.id, mid.id: old.id}
+    assert ids == {veteran.id: old.id, stranger.id: new.id, mid.id: old.id}
     assert po_set_for_student(mid, program) == old
+
+
+def test_draft_set_does_not_count_until_activated():
+    program = ProgramFactory()
+    active = ProgramOutcomeSetFactory(program=program, effective_from_year=2020, is_active=True)
+    ProgramOutcomeSetFactory(program=program, effective_from_year=2024, is_active=False)  # draft
+    student = UserFactory()
+    MembershipFactory(user=student, program=program, cohort_year=2024)
+    assert po_set_ids_for_students([student.id], program) == {student.id: active.id}
 
 
 def test_program_without_active_set_is_an_error():

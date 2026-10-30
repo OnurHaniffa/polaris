@@ -22,8 +22,17 @@ def test_po_set_fallbacks():
     MembershipFactory(user=mid, program=program, cohort_year=2022)
 
     ids = po_set_ids_for_students([veteran.id, stranger.id, mid.id], program)
-    assert ids == {veteran.id: new.id, stranger.id: new.id, mid.id: old.id}
+    assert ids == {veteran.id: old.id, stranger.id: new.id, mid.id: old.id}
     assert po_set_for_student(mid, program) == old
+
+
+def test_draft_set_does_not_count_until_activated():
+    program = ProgramFactory()
+    active = ProgramOutcomeSetFactory(program=program, effective_from_year=2020, is_active=True)
+    ProgramOutcomeSetFactory(program=program, effective_from_year=2024, is_active=False)  # draft
+    student = UserFactory()
+    MembershipFactory(user=student, program=program, cohort_year=2024)
+    assert po_set_ids_for_students([student.id], program) == {student.id: active.id}
 
 
 def test_program_without_active_set_is_an_error():
