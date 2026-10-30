@@ -60,8 +60,8 @@ Read Part 0 every time you sit down to work. Read Parts 1–3 once, carefully, b
 | Backlog in GitHub Projects | ⏳ S0-02 (needs the `project` scope on Onur's `gh` login) |
 | Django skeleton + Docker + CI | ✅ S0-03 skeleton 20 Oct, `compose.yml`; ✅ S0-05 CI 29 Oct (#11) |
 | Sprint 1 | ✅ models, PO migration, engine, loaders, `seed_demo` (#4, Zeynep, 23 Oct); admin, factories, all Sprint 1 tests, S1-09 design system and login page, `seed_demo` fix (#6–#10, 29 Oct); code-review fixes 30 Oct (PO set per cohort P13, excused grades P6, grades from another offering ignored, prod logging, Docker ports on 127.0.0.1). 248 tests, 94% coverage |
-| Sprint 2 | 🔄 S2-02 permissions + permission matrix (#5, Fatma, 28 Oct). Next: S2-01 login/home, S2-03 head screens |
-| Staging deployment | ⏳ (Sprint 2, S2-08) |
+| Sprint 2 | 🔄 S2-02 permissions + permission matrix (#5, Fatma, 28 Oct). On 30 Oct (Onur, pushed to `develop`): S2-01 login, role-based home, role switcher, navbar; S2-03 department pages (terms, courses, offerings, enrollments, PO sets); S2-09 password reset; S2-04 LO/assessment editors + setup checklist; S2-05 both weight grids (HTMX validation, stale-edit 409); S2-07 mapping lint L001–L007; S2-06 grade sheet (HTMX save, keyboard nav). 932 tests, 92% coverage. Left: S2-08 staging (needs a VPS, DuckDNS and GitHub secrets) |
+| Staging deployment | ⏳ S2-08: blocked on choosing and paying for the VPS (D14) |
 | Tier 1 features | ⏳ (Sprints 4–7) |
 
 **Blockers:** none.
