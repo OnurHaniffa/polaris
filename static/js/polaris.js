@@ -181,3 +181,71 @@
     if (moveTo(target)) event.preventDefault();
   });
 })();
+// ---------- PO bar chart (S3-02) ----------
+window.Polaris = window.Polaris || {};
+
+Polaris.cssVar = function (name, fallback) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+};
+
+Polaris.poBarChart = function (canvasId, dataId) {
+  const canvas = document.getElementById(canvasId);
+  const source = document.getElementById(dataId);
+  if (!canvas || !source || typeof Chart === "undefined") return null;
+  const data = JSON.parse(source.textContent);
+
+  const colourFor = {
+    attained: Polaris.cssVar("--pl-attained", "#198754"),
+    below: Polaris.cssVar("--pl-below", "#dc3545"),
+    none: Polaris.cssVar("--pl-none", "#adb5bd"),
+  };
+
+  const thresholdLine = {
+    id: "thresholdLine",
+    afterDatasetsDraw(chart) {
+      const x = chart.scales.x.getPixelForValue(data.threshold);
+      const { top, bottom } = chart.chartArea;
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.strokeStyle = Polaris.cssVar("--pl-accent", "#d97706");
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(x, top);
+      ctx.lineTo(x, bottom);
+      ctx.stroke();
+      ctx.restore();
+    },
+  };
+
+  return new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: data.labels,
+      datasets: [{
+        label: "Score",
+        data: data.values,
+        backgroundColor: data.states.map((s) => colourFor[s]),
+        borderRadius: 3,
+      }],
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      scales: { x: { min: 0, max: 100, ticks: { stepSize: 20 } } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => `${items[0].label} · ${data.names[items[0].dataIndex]}`,
+            label: (item) => (item.raw === null ? "No evidence yet" : item.raw.toFixed(1)),
+          },
+        },
+      },
+    },
+    plugins: [thresholdLine],
+  });
+};

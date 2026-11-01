@@ -60,3 +60,9 @@ def query_transform(context, **changes):
         else:
             params[key] = value
     return params.urlencode()
+
+
+@register.filter
+def get_item(mapping, key):
+    """{{ some_dict|get_item:key }}. Returns None for a missing key."""
+    return mapping.get(key) if mapping is not None else None

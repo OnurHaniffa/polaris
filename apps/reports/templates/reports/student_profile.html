@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% load polaris %}
+
+{% block title %}{% if is_self %}My PO profile{% else %}{{ student.get_full_name }}: PO profile{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-baseline justify-content-between mb-3 gap-2">
+  <h1 class="h3 mb-0">
+    {% if is_self %}My program outcomes{% else %}{{ student.get_full_name }}{% endif %}
+  </h1>
+  {% if program %}
+    <span class="text-body-secondary">
+      {{ program.code }} · {{ po_set.label }} · threshold {{ threshold|score }}
+      {% if student.student_number %} · {{ student.student_number }}{% endif %}
+    </span>
+  {% endif %}
+</div>
+
+{% if not program %}
+  {% include "includes/empty_state.html" with title="No program yet" message="This account isn't registered as a student in any program. Ask the department office to add you." only %}
+{% elif not has_any_score %}
+  {% include "includes/empty_state.html" with title="No published grades yet" message="Your scores appear here as soon as an instructor publishes the first assessment of one of your courses. Nothing you see here is ever a draft." only %}
+{% endif %}
+
+{% if program %}
+<div class="row g-4">
+  <div class="col-lg-7 order-lg-2">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle pl-scores" aria-describedby="po-table-help">
+        <thead>
+          <tr>
+            <th scope="col">PO</th>
+            <th scope="col">Outcome</th>
+            <th scope="col" class="text-end">Score</th>
+            <th scope="col" class="w-25">Evidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% if is_self %}
+              {% url "student:po_detail" row.po.id as detail_url %}
+            {% else %}
+              {% url "reports:department_student_po" student.id row.po.id as detail_url %}
+            {% endif %}
+            <tr>
+              <td class="fw-semibold">{{ row.po.number }}</td>
+              <td>
+                <a href="{{ detail_url }}"
+                   hx-get="{{ detail_url }}" hx-target="#po-drawer-body" hx-swap="innerHTML"
+                   data-bs-toggle="offcanvas" data-bs-target="#po-drawer"
+                   title="{{ row.po.description }}">{{ row.po.short_name }}</a>
+              </td>
+              <td class="text-end">
+                {% include "includes/score_badge.html" with value=row.score threshold=threshold only %}
+              </td>
+              <td>
+                {% if row.score is None %}
+                  <span class="text-body-secondary small">No courses have contributed to this outcome yet</span>
+                {% else %}
+                  {% include "includes/coverage_bar.html" with coverage=row.coverage only %}
+                  <span class="small text-body-secondary">{{ row.course_count }} course{{ row.course_count|pluralize }}</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p id="po-table-help" class="small text-body-secondary">
+      Click an outcome to see which courses and learning outcomes produce its score.
+      "Evidence" is the share of the planned weight that already has published grades.
+    </p>
+  </div>
+
+  <div class="col-lg-5 order-lg-1">
+    <div class="pl-chart-box" style="height: 420px">
+      <canvas id="po-chart" role="img"
+              aria-label="Bar chart of the {{ rows|length }} program outcome scores. The same numbers are in the table."></canvas>
+    </div>
+    {{ chart|json_script:"po-chart-data" }}
+  </div>
+</div>
+
+<h2 class="h5 mt-4">Courses</h2>
+{% if courses %}
+  <ul class="list-group mb-4">
+    {% for c in courses %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <span>
+          {% if is_self %}<a href="{% url 'student:course' c.offering.id %}">{% endif %}
+            {{ c.offering.course.code }} {{ c.offering.course.title }}
+          {% if is_self %}</a>{% endif %}
+          <span class="text-body-secondary">· {{ c.offering.term.name }}</span>
+        </span>
+        <span>
+          {% if c.in_progress %}<span class="badge text-bg-warning">In progress</span>{% endif %}
+          {% if c.superseded %}<span class="badge text-bg-secondary" title="You retook this course later. Only the latest attempt counts toward PO scores.">Retaken</span>{% endif %}
+        </span>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="text-body-secondary">You're not enrolled in any course yet.</p>
+{% endif %}
+
+<div class="offcanvas offcanvas-end" tabindex="-1" id="po-drawer" aria-labelledby="po-drawer-title">
+  <div class="offcanvas-header">
+    <h2 class="offcanvas-title h5" id="po-drawer-title">Where this number comes from</h2>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body" id="po-drawer-body">
+    <p class="text-body-secondary">Loading…</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if program %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => Polaris.poBarChart("po-chart", "po-chart-data"));
+</script>
+{% endif %}
+{% endblock %}

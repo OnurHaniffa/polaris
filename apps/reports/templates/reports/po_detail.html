@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load polaris %}
+
+{% block title %}PO {{ po.number }}: where the score comes from{% endblock %}
+
+{% block content %}
+<a href="{% url 'student:profile' %}" class="d-inline-block mb-3">&larr; Back to my profile</a>
+{% partialdef drawer inline %}
+<div class="pl-po-detail">
+  <h3 class="h5">PO {{ po.number }} · {{ po.short_name }}</h3>
+  <p class="small text-body-secondary">{{ po.description }}</p>
+  <p class="fs-4 mb-1">{% include "includes/score_badge.html" with value=score threshold=threshold only %}</p>
+  {% if score is not None %}
+    {% include "includes/coverage_bar.html" with coverage=coverage only %}
+  {% endif %}
+
+  {% if rows %}
+    <p class="small mt-3">
+      Your PO {{ po.number }} score is the weighted average of these learning-outcome scores.
+      Each weight (1–5) says how strongly that outcome supports PO {{ po.number }}.
+    </p>
+    <table class="table table-sm align-middle pl-scores">
+      <thead>
+        <tr><th scope="col">Course · LO</th><th scope="col" class="text-end">LO score</th>
+            <th scope="col" class="text-end">Weight</th><th scope="col" class="text-end">Share</th></tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr{% if r.lo_score is None %} class="text-body-secondary"{% endif %}>
+            <td>
+              <span class="fw-semibold">{{ r.offering.course.code }}</span> LO {{ r.lo.number }}
+              <span class="d-block small">{{ r.lo.description|truncatechars:90 }}</span>
+              <span class="d-block small">{{ r.offering.term.name }}</span>
+            </td>
+            <td class="text-end">{% if r.lo_score is None %}no grades yet{% else %}{{ r.lo_score|score }}{% endif %}</td>
+            <td class="text-end">{{ r.weight }}</td>
+            <td class="text-end">{% if r.share is None %}—{% else %}{{ r.share|pct }}{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="small text-body-secondary">
+      Rows marked "no grades yet" are skipped, not counted as zero. They start counting
+      when their assessments are published.
+    </p>
+  {% else %}
+    <p class="mt-3">No course you've taken links a learning outcome to PO {{ po.number }} yet,
+      so there is nothing to average. This is "no evidence", not a failing score.</p>
+  {% endif %}
+</div>
+{% endpartialdef %}
+{% endblock %}

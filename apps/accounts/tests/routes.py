@@ -259,6 +259,12 @@ ROUTES: list[Route] = [
         method="POST",
         story="S7-03",
     ),
+    Route(
+        "reports:department_student_po",
+        HEAD,
+        kwargs=lambda w: {"user_id": w.users["student"].pk, "po_id": w.po.pk},
+        story="S3-02",
+    ),
     # Department outcomes
     Route("catalog:outcomes", HEAD, story="S2-03"),
     Route("catalog:po_set", HEAD, kwargs=lambda w: {"set_id": w.po_set.pk}, story="S2-03"),

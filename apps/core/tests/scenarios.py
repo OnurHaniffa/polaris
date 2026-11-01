@@ -5,12 +5,15 @@ their own PO set. They never touch the real CSE program created by the data migr
 tests can't interfere with it or with each other."""
 
 import datetime
+from datetime import date
+from decimal import Decimal
 from decimal import Decimal as D
 from types import SimpleNamespace
 
-from apps.accounts.models import ProgramMembership
+from django.utils import timezone
 
-from .factories import (
+from apps.accounts.models import ProgramMembership
+from apps.core.tests.factories import (
     AssessmentFactory,
     AssessmentLOWeightFactory,
     CourseFactory,
@@ -28,7 +31,7 @@ from .factories import (
 )
 
 
-def elif_scenario(*, published=True):
+def elif_scenario(*, published=True, student_number="2024-0041"):
     """Offering with 2 assessments, 2 LOs, 2 POs, weights and grades from the professor's
     slide (spec §2.2). With published=True, Elif's profile is PO 1 = 85.0, PO 2 = 82.9.
     With published=False the grades are drafts: her profile has no scores at all."""
@@ -39,7 +42,7 @@ def elif_scenario(*, published=True):
 
     instructor = UserFactory(first_name="Ahmet", last_name="Hoca")
     MembershipFactory(user=instructor, program=program, role=ProgramMembership.Role.INSTRUCTOR)
-    student = UserFactory(first_name="Elif", last_name="Yıldız", student_number="2024-0041")
+    student = UserFactory(first_name="Elif", last_name="Yıldız", student_number=student_number)
     MembershipFactory(user=student, program=program, cohort_year=2024)
 
     course = CourseFactory(program=program, code="CSE 311", title="Software Engineering")
@@ -126,4 +129,63 @@ def small_department():
                 )
     return SimpleNamespace(
         program=program, term=term, offerings=offerings, students=students, po1=po1, po2=po2
+    )
+
+
+def one_lo_class(*, students_scores=(), term=None, program=None, po=None, lo_po_weight=3):
+    """One offering whose single published assessment (max 100) feeds one LO (weight 100),
+    which maps to one PO. A student's grade is therefore also their LO and PO score."""
+    if po is None:
+        program = program or ProgramFactory()
+        po_set = ProgramOutcomeSetFactory(program=program, is_active=True, effective_from_year=2000)
+        po = ProgramOutcomeFactory(po_set=po_set, number=1)
+    program = po.po_set.program
+    term = term or TermFactory(
+        code="2026S",
+        name="Spring 2026",
+        starts_on=date(2026, 2, 9),
+        ends_on=date(2026, 6, 15),
+        status="closed",
+    )
+    offering = OfferingFactory(course=CourseFactory(program=program), term=term)
+    published_at = timezone.now()
+    assessment = AssessmentFactory(
+        offering=offering, name="Exam", max_score=Decimal("100"), published_at=published_at
+    )
+    lo = LearningOutcomeFactory(offering=offering, number=1)
+    AssessmentLOWeightFactory(assessment=assessment, learning_outcome=lo, weight=Decimal("100"))
+    LOPOWeightFactory(learning_outcome=lo, program_outcome=po, weight=lo_po_weight)
+
+    students, enrollments = [], []
+    for student, score in students_scores:
+        if student is None:
+            student = UserFactory()
+        ProgramMembership.objects.get_or_create(
+            user=student,
+            program=program,
+            role=ProgramMembership.Role.STUDENT,
+            defaults={"cohort_year": 2024},
+        )
+        enrollment = EnrollmentFactory(offering=offering, student=student)
+        if score is not None:
+            value = Decimal(str(score))
+            GradeFactory(
+                assessment=assessment,
+                enrollment=enrollment,
+                score=value,
+                published_score=value,
+                published_at=published_at,
+            )
+        students.append(student)
+        enrollments.append(enrollment)
+
+    return SimpleNamespace(
+        offering=offering,
+        assessment=assessment,
+        lo=lo,
+        po=po,
+        program=program,
+        term=term,
+        students=students,
+        enrollments=enrollments,
     )

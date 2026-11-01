@@ -146,3 +146,18 @@
   background: var(--pl-draft, #f59f00);
 }
 .grade-cell.is-excused .grade-input { font-style: italic; color: var(--bs-secondary-color); }
+
+/* mini histogram (S3-03) */
+.pl-histogram {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 28px;
+  min-width: 60px;
+}
+.pl-histogram > span {
+  flex: 1;
+  min-height: 1px;
+  background: var(--pl-primary, #1f3a5f);
+  opacity: 0.75;
+}
