@@ -1,5 +1,6 @@
 """Class- and program-level numbers. Always averages of per-student engine results,
 never a separate formula on pooled grades (spec §2.5)."""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -30,7 +31,7 @@ class StudentLORow:
     student_id: int
     student_number: str | None
     name: str
-    scores: dict[int, NodeScore]             # lo_id -> NodeScore
+    scores: dict[int, NodeScore]  # lo_id -> NodeScore
 
 
 @dataclass(frozen=True)
@@ -83,8 +84,9 @@ def class_lo_summary(offering) -> ClassLOSummary:
         profile = compute_student_profile([off_inputs]) if off_inputs else None
         scores: dict[int, NodeScore] = {}
         for lo in los:
-            ns = profile.lo_scores.get((offering.id, lo.id),
-                NO_EVIDENCE) if profile else NO_EVIDENCE
+            ns = (
+                profile.lo_scores.get((offering.id, lo.id), NO_EVIDENCE) if profile else NO_EVIDENCE
+            )
             scores[lo.id] = ns
             if ns.score is not None:
                 lo_values[lo.id].append(ns.score)
@@ -92,13 +94,15 @@ def class_lo_summary(offering) -> ClassLOSummary:
             for po_id, ns in profile.po_scores.items():
                 if ns.score is not None:
                     po_values[po_id].append(ns.score)
-        rows.append(StudentLORow(
-            enrollment_id=enr.id,
-            student_id=enr.student_id,
-            student_number=enr.student.student_number,
-            name=enr.student.get_full_name(),
-            scores=scores,
-        ))
+        rows.append(
+            StudentLORow(
+                enrollment_id=enr.id,
+                student_id=enr.student_id,
+                student_number=enr.student.student_number,
+                name=enr.student.get_full_name(),
+                scores=scores,
+            )
+        )
 
     stats = []
     for lo in los:
@@ -106,16 +110,32 @@ def class_lo_summary(offering) -> ClassLOSummary:
         counts = [0] * BUCKETS
         for v in values:
             counts[bucket_of(v)] += 1
-        stats.append(LOStats(lo_id=lo.id, number=lo.number, description=lo.description,
-                             mean=mean(values), n=len(values), histogram=tuple(counts)))
+        stats.append(
+            LOStats(
+                lo_id=lo.id,
+                number=lo.number,
+                description=lo.description,
+                mean=mean(values),
+                n=len(values),
+                histogram=tuple(counts),
+            )
+        )
 
-    pos = (ProgramOutcome.objects
-           .filter(lo_weights__learning_outcome__offering=offering)
-           .distinct().order_by("number"))
+    pos = (
+        ProgramOutcome.objects.filter(lo_weights__learning_outcome__offering=offering)
+        .distinct()
+        .order_by("number")
+    )
     contribution = [
-        POContribution(po_id=po.id, number=po.number, short_name=po.short_name,
-                       mean=mean(po_values.get(po.id, [])), n=len(po_values.get(po.id, [])))
+        POContribution(
+            po_id=po.id,
+            number=po.number,
+            short_name=po.short_name,
+            mean=mean(po_values.get(po.id, [])),
+            n=len(po_values.get(po.id, [])),
+        )
         for po in pos
     ]
-    return ClassLOSummary(los=stats, rows=rows, po_contribution=contribution,
-                          enrolled=len(enrollments))
+    return ClassLOSummary(
+        los=stats, rows=rows, po_contribution=contribution, enrolled=len(enrollments)
+    )

@@ -121,6 +121,8 @@ STUDENT_PROFILE = {
     "other_student": 200,
     "admin": 200,
 }
+
+
 def _status(table: dict, allowed: int) -> dict:
     """Same people as `table`, but the allowed ones get `allowed` (e.g. 302 after a POST)."""
     return {p: (allowed if code == 200 else code) for p, code in table.items()}
@@ -243,16 +245,24 @@ ROWS: list[Row] = [
     # S2-06: grade sheet. An empty POST is a blank cell: nothing saved, the cell comes back.
     *offering_rows("grading:sheet", "GET", offering_kwargs, READ_OFFERING, READ_OFFERING),
     *offering_rows("grading:cell", "POST", _grade_cell),
-        # S3-02: student pages
+    # S3-02: student pages
     Row("student:profile", "GET", STUDENT_PROFILE),
     Row("student:po_detail", "GET", STUDENT_PAGE, _cse_po),
     Row("student:course", "GET", STUDENT_PAGE, offering_kwargs("open_offering"), "open"),
     Row("student:transcript", "GET", NOWHERE),
     # S3-02 / S3-03: department + results
-    Row("reports:department_student", "GET", CSE_OBJECT,
-        lambda world: {"user_id": world.users["student"].pk}),
-    Row("reports:department_student_po", "GET", CSE_OBJECT,
-        lambda world: {**_cse_po(world), "user_id": world.users["student"].pk}),
+    Row(
+        "reports:department_student",
+        "GET",
+        CSE_OBJECT,
+        lambda world: {"user_id": world.users["student"].pk},
+    ),
+    Row(
+        "reports:department_student_po",
+        "GET",
+        CSE_OBJECT,
+        lambda world: {**_cse_po(world), "user_id": world.users["student"].pk},
+    ),
     Row("reports:results", "GET", READ_OFFERING, offering_kwargs("open_offering"), "open"),
     Row("reports:results", "GET", READ_OFFERING, offering_kwargs("closed_offering"), "closed"),
 ]

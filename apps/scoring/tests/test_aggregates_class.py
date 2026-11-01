@@ -37,7 +37,7 @@ def test_elif_row_in_her_class():
     assert display(row.scores[data.lo1.id].score) == "86.0"
     assert display(row.scores[data.lo2.id].score) == "82.9"
     po1 = next(c for c in summary.po_contribution if c.po_id == data.po1.id)
-    assert display(po1.mean) == "85.0"           # she is the only student
+    assert display(po1.mean) == "85.0"  # she is the only student
 
 
 def test_dropped_students_are_not_listed():
@@ -49,9 +49,17 @@ def test_dropped_students_are_not_listed():
     assert summary.los[0].mean == Decimal("80")
 
 
-@pytest.mark.parametrize(("score", "bucket"), [
-    ("0", 0), ("9.99", 0), ("10", 1), ("59.5", 5), ("99.9", 9), ("100", 9),
-])
+@pytest.mark.parametrize(
+    ("score", "bucket"),
+    [
+        ("0", 0),
+        ("9.99", 0),
+        ("10", 1),
+        ("59.5", 5),
+        ("99.9", 9),
+        ("100", 9),
+    ],
+)
 def test_bucket_edges(score, bucket):
     assert bucket_of(Decimal(score)) == bucket
 
