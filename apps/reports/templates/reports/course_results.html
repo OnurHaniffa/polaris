@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load polaris %}
+
+{% block title %}{{ offering.course.code }} · results{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'catalog:teaching' %}">My courses</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'catalog:offering' offering.id %}">{{ offering.course.code }} · {{ offering.term.name }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Results</li>
+  </ol>
+</nav>
+
+<h1 class="h3">Results <small class="text-body-secondary">{{ summary.enrolled }} student{{ summary.enrolled|pluralize }}</small></h1>
+<p class="small text-body-secondary">Published grades only. Drafts on the grade sheet appear here after you publish them.
+  {% if in_progress %}The term is still open, so these numbers will change.{% endif %}</p>
+
+{% if not status.is_complete %}
+  {% include "includes/setup_checklist.html" with status=status offering=offering can_manage_enrollment=False only %}
+{% endif %}
+
+{% if not summary.los %}
+  {% url 'outcomes:setup' offering.id as setup_url %}
+  {% include "includes/empty_state.html" with title="No learning outcomes yet" message="Results are shown per learning outcome. Define them on the setup page first." action_label="Go to setup" action_url=setup_url only %}
+{% elif not summary.rows %}
+  {% include "includes/empty_state.html" with title="No students enrolled" message="The department adds students to this course. Ask the head if the list is missing." only %}
+{% else %}
+<div class="row g-4">
+  <div class="col-xl-9">
+    <div class="table-responsive pl-sticky-wrap" style="max-height: 70vh">
+      <table class="table table-sm table-hover align-middle pl-scores">
+        <thead class="pl-sticky-head">
+          <tr>
+            <th scope="col" class="pl-sticky-col">Student</th>
+            {% for lo in summary.los %}
+              <th scope="col" class="text-end" title="{{ lo.description }}">LO {{ lo.number }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in summary.rows %}
+            <tr>
+              <th scope="row" class="pl-sticky-col fw-normal">
+                <span class="font-monospace small">{{ row.student_number|default:"" }}</span> {{ row.name }}
+              </th>
+              {% for lo in summary.los %}
+                {% with ns=row.scores|get_item:lo.lo_id %}
+                  <td class="text-end{% if ns.score is not None and ns.score < threshold %} text-danger{% endif %}"
+                      title="evidence {{ ns.coverage|pct }}">{{ ns.score|score }}</td>
+                {% endwith %}
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="table-group-divider">
+          <tr class="fw-semibold">
+            <th scope="row" class="pl-sticky-col">Class average</th>
+            {% for lo in summary.los %}
+              <td class="text-end">{{ lo.mean|score }}<span class="d-block small fw-normal text-body-secondary">n = {{ lo.n }}</span></td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <th scope="row" class="pl-sticky-col small fw-normal">Distribution 0 → 100</th>
+            {% for lo in summary.los %}
+              <td>
+                <div class="pl-histogram" role="img"
+                     aria-label="LO {{ lo.number }} distribution: {% for c in lo.histogram %}{{ c }}{% if not forloop.last %}, {% endif %}{% endfor %} students per 10-point band">
+                  {% for h in lo.histogram_heights %}<span style="height: {{ h }}%"></span>{% endfor %}
+                </div>
+              </td>
+            {% endfor %}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <aside class="col-xl-3">
+    <h2 class="h5">This course's contribution to POs</h2>
+    <p class="small text-body-secondary">Class average of each student's PO score, computed from this course alone.</p>
+    <ul class="list-group">
+      {% for c in summary.po_contribution %}
+        <li class="list-group-item d-flex justify-content-between">
+          <span>PO {{ c.number }} <span class="small text-body-secondary">{{ c.short_name }}</span></span>
+          <span>{% include "includes/score_badge.html" with value=c.mean threshold=threshold only %}</span>
+        </li>
+      {% empty %}
+        <li class="list-group-item text-body-secondary">No LO is linked to a PO yet. <a href="{% url 'outcomes:mapping' offering.id %}">Open the mapping</a>.</li>
+      {% endfor %}
+    </ul>
+  </aside>
+</div>
+{% endif %}
+{% endblock %}

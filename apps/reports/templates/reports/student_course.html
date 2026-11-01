@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load polaris %}
+
+{% block title %}{{ offering.course.code }} · my grades{% endblock %}
+
+{% block content %}
+<a href="{% url 'student:profile' %}" class="d-inline-block mb-3">&larr; My profile</a>
+<h1 class="h3">{{ offering.course.code }} {{ offering.course.title }}
+  <small class="text-body-secondary">{{ offering.term.name }}</small></h1>
+
+{% if in_progress %}
+  <div class="alert alert-warning py-2">This course is in progress. Scores change as more assessments are published.</div>
+{% endif %}
+{% if superseded %}
+  <div class="alert alert-secondary py-2">You retook this course later. These grades stay visible, but only the latest attempt counts toward your PO scores.</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-md-6">
+    <h2 class="h5">Assessments</h2>
+    <table class="table align-middle pl-scores">
+      <thead><tr><th scope="col">Assessment</th><th scope="col" class="text-end">Mark</th><th scope="col" class="text-end">Out of 100</th></tr></thead>
+      <tbody>
+        {% for r in assessment_rows %}
+          <tr>
+            <td>{{ r.assessment.name }} <span class="small text-body-secondary">{{ r.assessment.get_kind_display }}</span></td>
+            {% if r.state == "scored" %}
+              <td class="text-end">{{ r.raw|weight }} / {{ r.assessment.max_score|weight }}</td>
+              <td class="text-end">{{ r.normalised|score }}</td>
+            {% elif r.state == "excused" %}
+              <td class="text-end" colspan="2"><span class="badge text-bg-info">Excused</span></td>
+            {% elif r.state == "missing" %}
+              <td class="text-end" colspan="2"><span class="text-body-secondary">No grade</span></td>
+            {% else %}
+              <td class="text-end" colspan="2"><span class="text-body-secondary">Not published yet</span></td>
+            {% endif %}
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="text-body-secondary">The instructor hasn't set up assessments yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="col-md-6">
+    <h2 class="h5">Learning outcomes</h2>
+    <table class="table align-middle pl-scores">
+      <thead><tr><th scope="col">LO</th><th scope="col" class="text-end">Score</th><th scope="col" class="w-25">Evidence</th></tr></thead>
+      <tbody>
+        {% for lo, ns in lo_rows %}
+          <tr>
+            <td><span class="fw-semibold">LO {{ lo.number }}</span> <span class="small">{{ lo.description }}</span></td>
+            <td class="text-end">{{ ns.score|score }}</td>
+            <td>{% if ns.score is not None %}{% include "includes/coverage_bar.html" with coverage=ns.coverage only %}{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="text-body-secondary">No learning outcomes defined yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
