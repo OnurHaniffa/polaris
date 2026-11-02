@@ -149,9 +149,7 @@ def _with_lo(attr: str) -> Callable[[World], dict]:
 
     def kwargs(world):
         offering = getattr(world, attr)
-        lo, _ = LearningOutcome.objects.get_or_create(
-            offering=offering, number=1, defaults={"description": "Design schemas"}
-        )
+        lo, _ = LearningOutcome.objects.get_or_create(offering=offering, number=1, defaults={"description": "Design schemas"})
         return {"offering_id": offering.pk, "lo_id": lo.pk}
 
     return kwargs
@@ -160,9 +158,7 @@ def _with_lo(attr: str) -> Callable[[World], dict]:
 def _with_assessment(attr: str) -> Callable[[World], dict]:
     def kwargs(world):
         offering = getattr(world, attr)
-        assessment, _ = Assessment.objects.get_or_create(
-            offering=offering, name="Midterm I", defaults={"kind": "midterm"}
-        )
+        assessment, _ = Assessment.objects.get_or_create(offering=offering, name="Midterm I", defaults={"kind": "midterm"})
         return {"offering_id": offering.pk, "assessment_id": assessment.pk}
 
     return kwargs
@@ -195,8 +191,7 @@ def _enrollment_job(world: World) -> dict:
 
     upload = SimpleUploadedFile(
         "class.csv",
-        b"student_number,email,first_name,last_name,cohort_year\n"
-        b"2024-0001,matrix@x.edu,Ada,Lovelace,2024\n",
+        b"student_number,email,first_name,last_name,cohort_year\n2024-0001,matrix@x.edu,Ada,Lovelace,2024\n",
         content_type="text/csv",
     )
     job = create_enrollment_import_job(world.users["head"], world.open_offering, upload)
@@ -259,9 +254,7 @@ ROWS: list[Row] = [
     *offering_rows("outcomes:assessment_delete", "GET", _with_assessment),
     # S2-05: weight grids. An empty POST has no version / no cell, so the views answer 400.
     *offering_rows("outcomes:mapping", "GET", offering_kwargs, READ_OFFERING, READ_OFFERING),
-    *offering_rows(
-        "outcomes:save_assessment_lo", "POST", offering_kwargs, _status(WRITE_OPEN, 400)
-    ),
+    *offering_rows("outcomes:save_assessment_lo", "POST", offering_kwargs, _status(WRITE_OPEN, 400)),
     *offering_rows("outcomes:save_lo_po", "POST", offering_kwargs, _status(WRITE_OPEN, 400)),
     *offering_rows("outcomes:validate_cell", "POST", offering_kwargs, _status(WRITE_OPEN, 400)),
     # S2-06: grade sheet. An empty POST is a blank cell: nothing saved, the cell comes back.
@@ -311,9 +304,7 @@ def test_url_role_matrix(world, row, persona):
     response = getattr(client, row.method.lower())(url)
 
     expected = row.expect[persona]
-    assert response.status_code == expected, (
-        f"{row.method} {url} as {persona}: expected {expected}, got {response.status_code}"
-    )
+    assert response.status_code == expected, f"{row.method} {url} as {persona}: expected {expected}, got {response.status_code}"
     if expected == 302 and persona == "anonymous":
         assert response["Location"].startswith(resolve_url(settings.LOGIN_URL)), (
             f"{url}: anonymous users must be sent to the login page"
@@ -330,11 +321,7 @@ def iter_url_names(patterns, namespace=""):
             inner = f"{namespace}{pattern.namespace}:" if pattern.namespace else namespace
             yield from iter_url_names(pattern.url_patterns, inner)
         elif isinstance(pattern, URLPattern):
-            yield (
-                f"{namespace}{pattern.name}"
-                if pattern.name
-                else f"{namespace}<unnamed: {pattern.pattern}>"
-            )
+            yield (f"{namespace}{pattern.name}" if pattern.name else f"{namespace}<unnamed: {pattern.pattern}>")
 
 
 def project_url_names() -> set[str]:

@@ -64,9 +64,7 @@ def test_assessment_lo_rejects(raw, message):
     assert message in exc.value.messages[0]
 
 
-@pytest.mark.parametrize(
-    "raw, expected", [("1", 1), ("5", 5), (" 3 ", 3), ("", None), (None, None)]
-)
+@pytest.mark.parametrize("raw, expected", [("1", 1), ("5", 5), (" 3 ", 3), ("", None), (None, None)])
 def test_lo_po_accepts(raw, expected):
     assert validate_lo_po_cell(raw) == expected
 
@@ -96,9 +94,7 @@ def test_cell_names_round_trip():
 
 
 def test_parse_matrix_post_takes_only_its_grid():
-    post = QueryDict(
-        "a_lo-1-2=60&a_lo-1-3=&lo_po-2-9=4&version=abc&csrfmiddlewaretoken=t&a_lo-x-1=5"
-    )
+    post = QueryDict("a_lo-1-2=60&a_lo-1-3=&lo_po-2-9=4&version=abc&csrfmiddlewaretoken=t&a_lo-x-1=5")
     cells = sorted(parse_matrix_post(post, A_LO), key=lambda c: (c.row_id, c.col_id))
     assert cells == [Cell(1, 2, "60"), Cell(1, 3, "")]
     assert parse_matrix_post(post, LO_PO) == [Cell(2, 9, "4")]
@@ -131,9 +127,7 @@ def _grid():
             GridRow(
                 "LO 1",
                 [
-                    GridCell(
-                        "lo_po-1-1", "4", "LO 1 to PO 1", origin="ai_suggested", rationale="r"
-                    ),
+                    GridCell("lo_po-1-1", "4", "LO 1 to PO 1", origin="ai_suggested", rationale="r"),
                     GridCell("lo_po-1-2", "", "LO 1 to PO 2"),
                 ],
             ),

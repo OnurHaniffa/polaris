@@ -23,17 +23,13 @@ pytestmark = pytest.mark.django_db
 def course():
     offering = OfferingFactory(term__status=Term.Status.OPEN)
     instructor = UserFactory()
-    MembershipFactory(
-        user=instructor, program=offering.course.program, role=ProgramMembership.Role.INSTRUCTOR
-    )
+    MembershipFactory(user=instructor, program=offering.course.program, role=ProgramMembership.Role.INSTRUCTOR)
     offering.instructors.add(instructor)
     return offering, instructor
 
 
 def _big_class(offering, students=80, assessments=6):
-    tests = [
-        AssessmentFactory(offering=offering, name=f"A{i}", position=i) for i in range(assessments)
-    ]
+    tests = [AssessmentFactory(offering=offering, name=f"A{i}", position=i) for i in range(assessments)]
     for _ in range(students):
         e = EnrollmentFactory(offering=offering)
         for a in tests:

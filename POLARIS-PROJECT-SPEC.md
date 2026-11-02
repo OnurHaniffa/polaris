@@ -4794,3 +4794,4 @@ The official wording, from Acıbadem OBS (`obs.acibadem.edu.tr/oibs/bologna/prog
 | 1.0 | 16 Oct 2026 | First complete version | Team |
 | 1.1 | 16 Oct 2026 | Repo created. Added §4.8 code map, policy P13 (PO set per cohort), `ExportJob` model, `IngestionJob.Kind.ENROLLMENTS`. Build guide added under `docs/build/` (Part 16) | Team |
 | 1.2 | 30 Oct 2026 | §0.1 status updated after Sprint 0–1 work; §2.5 engine snippet and the Sprint 0–1 build guide synced with the code (P13 selector, P6 excused grades, cross-offering grade filter); prod `LOGGING` keeps Django's loggers; `compose.yml` ports bound to 127.0.0.1 | Onur |
+| 2026-11-02 | S3-07 | Appendix B: names come from built-in lists in `data.py`, not Faker (Faker is dev-only and not in the production image) |

@@ -31,9 +31,7 @@ def test_reset_email_link_works_once(client, user):
     assert mail.outbox[0].subject == "Reset your POlaris password"
 
     set_password_url = client.get(link)["Location"]  # token moves into the session
-    response = client.post(
-        set_password_url, {"new_password1": "a-new-Pass-2026", "new_password2": "a-new-Pass-2026"}
-    )
+    response = client.post(set_password_url, {"new_password1": "a-new-Pass-2026", "new_password2": "a-new-Pass-2026"})
     assert response["Location"] == reverse("accounts:password_reset_complete")
     user.refresh_from_db()
     assert user.check_password("a-new-Pass-2026")

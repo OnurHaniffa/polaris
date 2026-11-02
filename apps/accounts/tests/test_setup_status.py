@@ -56,9 +56,7 @@ def test_status_follows_each_setup_step(world):
     assert setup_status(offering).has_assessment_lo
     assert not setup_status(offering).is_complete
 
-    po_set = ProgramOutcomeSet.objects.create(
-        program=world.program, label="test set", effective_from_year=2099, is_active=False
-    )
+    po_set = ProgramOutcomeSet.objects.create(program=world.program, label="test set", effective_from_year=2099, is_active=False)
     po = ProgramOutcome.objects.create(po_set=po_set, number=1, short_name="PO1", description="x")
     LOPOWeight.objects.create(learning_outcome=lo, program_outcome=po, weight=3)
     status = setup_status(offering)

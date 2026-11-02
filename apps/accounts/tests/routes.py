@@ -117,9 +117,7 @@ ROUTES: list[Route] = [
     Route("outcomes:lo_create", OFFERING_STAFF, kwargs=off, edit=True, story="S2-04"),
     Route("outcomes:lo_edit", OFFERING_STAFF, kwargs=off_lo, edit=True, story="S2-04"),
     Route("outcomes:lo_delete", OFFERING_STAFF, kwargs=off_lo, edit=True, story="S2-04"),
-    Route(
-        "outcomes:lo_reorder", OFFERING_STAFF, kwargs=off, method="POST", edit=True, story="S2-04"
-    ),
+    Route("outcomes:lo_reorder", OFFERING_STAFF, kwargs=off, method="POST", edit=True, story="S2-04"),
     Route("outcomes:assessment_create", OFFERING_STAFF, kwargs=off, edit=True, story="S2-04"),
     Route("outcomes:assessment_edit", OFFERING_STAFF, kwargs=off_a, edit=True, story="S2-04"),
     Route("outcomes:assessment_delete", OFFERING_STAFF, kwargs=off_a, edit=True, story="S2-04"),
@@ -133,9 +131,7 @@ ROUTES: list[Route] = [
         edit=True,
         story="S2-05",
     ),
-    Route(
-        "outcomes:save_lo_po", OFFERING_STAFF, kwargs=off, method="POST", edit=True, story="S2-05"
-    ),
+    Route("outcomes:save_lo_po", OFFERING_STAFF, kwargs=off, method="POST", edit=True, story="S2-05"),
     Route(
         "outcomes:validate_cell",
         OFFERING_STAFF,

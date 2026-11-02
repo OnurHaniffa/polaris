@@ -45,9 +45,7 @@ def test_student_in_the_class_gets_404(client, klass):
     assert client.get(reverse("reports:results", args=[klass.offering.id])).status_code == 404
 
 
-def test_results_page_query_count_does_not_grow_with_class_size(
-    client, klass, django_assert_max_num_queries
-):
+def test_results_page_query_count_does_not_grow_with_class_size(client, klass, django_assert_max_num_queries):
     client.force_login(klass.instructor)
     with django_assert_max_num_queries(30):
         client.get(reverse("reports:results", args=[klass.offering.id]))

@@ -7,9 +7,7 @@ PASSWORD = "a-long-test-password"
 
 @pytest.fixture
 def user(django_user_model):
-    return django_user_model.objects.create_user(
-        "elif@live.acibadem.edu.tr", PASSWORD, first_name="Elif", last_name="Yıldız"
-    )
+    return django_user_model.objects.create_user("elif@live.acibadem.edu.tr", PASSWORD, first_name="Elif", last_name="Yıldız")
 
 
 def test_healthz(client):

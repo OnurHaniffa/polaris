@@ -126,9 +126,7 @@ def _decode(raw: bytes) -> str:
             return raw.decode(encoding)
         except UnicodeDecodeError:
             continue
-    raise ValidationError(
-        "We couldn't read this file's text encoding. Save it as CSV UTF-8 and try again."
-    )
+    raise ValidationError("We couldn't read this file's text encoding. Save it as CSV UTF-8 and try again.")
 
 
 def _normalise_header(cell: str) -> str:
@@ -179,9 +177,7 @@ def parse_enrollment_csv(file, *, offering) -> EnrollmentImportPreview:
     preview = EnrollmentImportPreview()
     raw = file.read(MAX_BYTES + 1)
     if len(raw) > MAX_BYTES:
-        preview.file_errors.append(
-            "The file is larger than 1 MB. A class list should be far smaller."
-        )
+        preview.file_errors.append("The file is larger than 1 MB. A class list should be far smaller.")
         return preview
     try:
         header, body = _read_rows(_decode(raw))
@@ -192,11 +188,7 @@ def parse_enrollment_csv(file, *, offering) -> EnrollmentImportPreview:
     missing = [c for c in COLUMNS if c not in header]
     if missing:
         preview.file_errors.append(
-            "Missing column(s): "
-            + ", ".join(missing)
-            + ". The first row must be: "
-            + ",".join(COLUMNS)
-            + "."
+            "Missing column(s): " + ", ".join(missing) + ". The first row must be: " + ",".join(COLUMNS) + "."
         )
         return preview
     index = {name: header.index(name) for name in COLUMNS}
@@ -229,10 +221,7 @@ def parse_enrollment_csv(file, *, offering) -> EnrollmentImportPreview:
                 seen_numbers[row.student_number] = row.line
         if row.email:
             if row.email in seen_emails:
-                row.fail(
-                    f"Email {row.email} appears twice in the file "
-                    f"(also on line {seen_emails[row.email]})."
-                )
+                row.fail(f"Email {row.email} appears twice in the file (also on line {seen_emails[row.email]}).")
             else:
                 seen_emails[row.email] = row.line
         preview.rows.append(row)
@@ -243,20 +232,13 @@ def parse_enrollment_csv(file, *, offering) -> EnrollmentImportPreview:
 
 def _match_against_database(preview: EnrollmentImportPreview, offering) -> None:
     candidates = [r for r in preview.rows if r.status != "error"]
-    by_number = {
-        u.student_number: u
-        for u in User.objects.filter(student_number__in=[r.student_number for r in candidates])
-    }
+    by_number = {u.student_number: u for u in User.objects.filter(student_number__in=[r.student_number for r in candidates])}
     by_email = {
         u.email_lower: u
-        for u in User.objects.annotate(email_lower=Lower("email")).filter(
-            email_lower__in=[r.email for r in candidates]
-        )
+        for u in User.objects.annotate(email_lower=Lower("email")).filter(email_lower__in=[r.email for r in candidates])
     }
     enrolled_ids = set(
-        Enrollment.objects.filter(offering=offering, status=Enrollment.Status.ENROLLED).values_list(
-            "student_id", flat=True
-        )
+        Enrollment.objects.filter(offering=offering, status=Enrollment.Status.ENROLLED).values_list("student_id", flat=True)
     )
 
     for row in candidates:
@@ -297,14 +279,10 @@ def stored_preview(job: IngestionJob) -> EnrollmentImportPreview:
     return EnrollmentImportPreview.from_json(job.result or {})
 
 
-def confirm_enrollment_import(
-    user, job: IngestionJob, *, skip_invalid=False, request=None
-) -> ImportResult:
+def confirm_enrollment_import(user, job: IngestionJob, *, skip_invalid=False, request=None) -> ImportResult:
     with transaction.atomic():
         job = (
-            IngestionJob.objects.select_for_update()
-            .select_related("offering__course__program", "offering__term")
-            .get(pk=job.pk)
+            IngestionJob.objects.select_for_update().select_related("offering__course__program", "offering__term").get(pk=job.pk)
         )
         if job.status != IngestionJob.Status.READY:
             raise ValidationError("This import was already applied or discarded.")
@@ -318,9 +296,7 @@ def confirm_enrollment_import(
             job.result = fresh.to_json()
             job.save(update_fields=["result", "updated_at"])
         else:
-            result = apply_enrollment_import(
-                user, offering, fresh, skip_invalid=skip_invalid, request=request
-            )
+            result = apply_enrollment_import(user, offering, fresh, skip_invalid=skip_invalid, request=request)
             job.status = IngestionJob.Status.APPLIED
             job.applied_at = timezone.now()
             job.save(update_fields=["status", "applied_at", "updated_at"])
@@ -337,9 +313,7 @@ def apply_enrollment_import(
     if preview.file_errors:
         raise ValidationError(preview.file_errors)
     if preview.has_errors and not skip_invalid:
-        raise ValidationError(
-            "Some rows have errors. Fix the file, or tick “skip rows with errors”."
-        )
+        raise ValidationError("Some rows have errors. Fix the file, or tick “skip rows with errors”.")
 
     program = offering.course.program
     created = enrolled = reactivated = skipped = 0
@@ -356,9 +330,7 @@ def apply_enrollment_import(
             cohort_year=row.cohort_year,
             actor=user,
         )
-        enrollment, enr_created = Enrollment.objects.get_or_create(
-            offering=offering, student=student
-        )
+        enrollment, enr_created = Enrollment.objects.get_or_create(offering=offering, student=student)
         if enr_created:
             enrolled += 1
             record(

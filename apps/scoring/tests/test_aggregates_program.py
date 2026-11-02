@@ -60,17 +60,13 @@ def test_including_open_terms_changes_the_numbers(dept):
 
 
 def test_terms_after_the_cutoff_are_ignored(dept):
-    s = _for(
-        program_po_summary(dept.program, terms=[dept.spring], include_open_terms=True), dept.po
-    )
+    s = _for(program_po_summary(dept.program, terms=[dept.spring], include_open_terms=True), dept.po)
     assert s.mean == Decimal("70")
 
 
 def test_po_without_evidence_has_no_rate(dept):
     lonely = ProgramOutcomeFactory(po_set=dept.po.po_set, number=11)
-    s = _for(
-        program_po_summary(dept.program, terms=[dept.spring], include_open_terms=False), lonely
-    )
+    s = _for(program_po_summary(dept.program, terms=[dept.spring], include_open_terms=False), lonely)
     assert s.mean is None and s.n_evidence == 0 and s.rate is None
 
 
@@ -85,9 +81,7 @@ def test_cohort_filter(dept):
     m.cohort_year = 2023
     m.save()
     s = _for(
-        program_po_summary(
-            dept.program, terms=[dept.spring], include_open_terms=False, cohort=2023
-        ),
+        program_po_summary(dept.program, terms=[dept.spring], include_open_terms=False, cohort=2023),
         dept.po,
     )
     assert (s.mean, s.n_evidence) == (Decimal("90"), 1)

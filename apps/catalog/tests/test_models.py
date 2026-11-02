@@ -45,9 +45,7 @@ def test_po_number_unique_within_set():
 
 def test_term_must_end_after_it_starts():
     with pytest.raises(IntegrityError), transaction.atomic():
-        TermFactory(
-            code="BAD", starts_on=datetime.date(2026, 9, 1), ends_on=datetime.date(2026, 8, 1)
-        )
+        TermFactory(code="BAD", starts_on=datetime.date(2026, 9, 1), ends_on=datetime.date(2026, 8, 1))
 
 
 def test_student_enrolled_once_per_offering():

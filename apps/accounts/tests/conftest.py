@@ -53,9 +53,7 @@ def term(db):
 
 
 def _offering(program, term, code):
-    course = Course.objects.create(
-        program=program, code=code, title=code, credits=Decimal("3"), ects=Decimal("5")
-    )
+    course = Course.objects.create(program=program, code=code, title=code, credits=Decimal("3"), ects=Decimal("5"))
     return CourseOffering.objects.create(course=course, term=term)
 
 
@@ -120,15 +118,11 @@ def outsider(db):
 
 @pytest.fixture
 def superuser(db):
-    return User.objects.create_superuser(
-        email="root@test.local", password="pw-12345-test", first_name="Root", last_name="Test"
-    )
+    return User.objects.create_superuser(email="root@test.local", password="pw-12345-test", first_name="Root", last_name="Test")
 
 
 @pytest.fixture
-def actors(
-    head, other_head, instructor, other_instructor, student, other_student, outsider, superuser
-):
+def actors(head, other_head, instructor, other_instructor, student, other_student, outsider, superuser):
     return {
         "head": head,
         "other_head": other_head,

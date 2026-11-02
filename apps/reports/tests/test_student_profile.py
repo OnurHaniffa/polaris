@@ -62,9 +62,7 @@ def test_unpublished_grades_never_appear():
 
 def test_draft_edits_do_not_change_published_score():
     data = elif_scenario()
-    Grade.objects.filter(assessment=data.midterm, enrollment__student=data.student).update(
-        score=Decimal("10")
-    )
+    Grade.objects.filter(assessment=data.midterm, enrollment__student=data.student).update(score=Decimal("10"))
     ctx = selectors.student_profile_context(data.student, viewer=data.student)
     assert display(_row(ctx, data.po1).score) == "85.0"
 
@@ -118,9 +116,7 @@ def test_unpublished_assessment_says_not_published(client):
 def test_another_students_course_page_is_404(client):
     data = elif_scenario()
     classmate = UserFactory()
-    MembershipFactory(
-        user=classmate, program=data.offering.course.program, role="student", cohort_year=2024
-    )
+    MembershipFactory(user=classmate, program=data.offering.course.program, role="student", cohort_year=2024)
     client.force_login(classmate)
     assert client.get(reverse("student:course", args=[data.offering.id])).status_code == 404
 
@@ -145,9 +141,7 @@ def test_head_sees_student_of_own_program_only(client):
 
 def test_retaken_course_is_marked_superseded():
     data = elif_scenario()
-    later_term = Term.objects.create(
-        code="2030S", name="Spring 2030", starts_on=date(2030, 2, 1), ends_on=date(2030, 6, 30)
-    )
+    later_term = Term.objects.create(code="2030S", name="Spring 2030", starts_on=date(2030, 2, 1), ends_on=date(2030, 6, 30))
     retake = OfferingFactory(course=data.offering.course, term=later_term)
     EnrollmentFactory(offering=retake, student=data.student)
     by_offering = {r.offering.id: r for r in selectors._course_rows(data.student)}

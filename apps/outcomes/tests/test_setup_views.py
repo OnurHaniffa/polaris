@@ -54,9 +54,7 @@ def _other_offering(course):
 
 def test_lo_from_another_course_is_404(teacher_client, course):
     """The sub-object rule from S2-02: ids are filtered by the offering in the URL."""
-    other = LearningOutcome.objects.create(
-        offering=_other_offering(course), number=1, description="Not yours"
-    )
+    other = LearningOutcome.objects.create(offering=_other_offering(course), number=1, description="Not yours")
     response = teacher_client.get(url("lo_edit", course, lo_id=other.pk))
     assert response.status_code == 404
 
@@ -71,12 +69,8 @@ def test_reorder_view(teacher_client, course):
 
 def test_delete_modal_lists_what_goes_with_it(teacher_client, course):
     """B4 AC3."""
-    AssessmentLOWeight.objects.create(
-        assessment=course.midterm, learning_outcome=course.lo1, weight=Decimal("60")
-    )
-    response = teacher_client.get(
-        url("lo_delete", course, lo_id=course.lo1.pk), headers={"HX-Request": "true"}
-    )
+    AssessmentLOWeight.objects.create(assessment=course.midterm, learning_outcome=course.lo1, weight=Decimal("60"))
+    response = teacher_client.get(url("lo_delete", course, lo_id=course.lo1.pk), headers={"HX-Request": "true"})
     html = response.content.decode()
     assert response.status_code == 200
     assert "<html" not in html  # partial only
@@ -97,9 +91,7 @@ def test_delete_published_assessment_is_refused_with_a_message(teacher_client, c
         headers={"HX-Request": "true"},
     ).content.decode()
     assert "Unpublish it on the Grades tab first" in modal and "Delete</button>" not in modal
-    response = teacher_client.post(
-        url("assessment_delete", course, assessment_id=course.midterm.pk), follow=True
-    )
+    response = teacher_client.post(url("assessment_delete", course, assessment_id=course.midterm.pk), follow=True)
     assert "Unpublish it on the Grades tab first" in response.content.decode()
     assert Assessment.objects.filter(pk=course.midterm.pk).exists()
 
@@ -117,9 +109,7 @@ def test_max_change_asks_for_confirmation_in_the_form(teacher_client, course):
         "course_weight": "40",
         "due_date": "",
     }
-    first = teacher_client.post(
-        url("assessment_edit", course, assessment_id=course.midterm.pk), data
-    )
+    first = teacher_client.post(url("assessment_edit", course, assessment_id=course.midterm.pk), data)
     assert first.status_code == 200
     assert "Yes, change the maximum" in first.content.decode()
     second = teacher_client.post(

@@ -34,10 +34,7 @@ class TermReopenForm(BootstrapFormMixin, forms.Form):
     reason = forms.CharField(
         min_length=10,
         widget=forms.Textarea(attrs={"rows": 2}),
-        help_text=(
-            "Stored in the audit trail. Example: "
-            "'Grade appeal for CSE 311 Midterm I, approved by the board.'"
-        ),
+        help_text=("Stored in the audit trail. Example: 'Grade appeal for CSE 311 Midterm I, approved by the board.'"),
     )
 
 
@@ -61,9 +58,7 @@ class CourseForm(BootstrapFormMixin, forms.ModelForm):
 
 def instructor_choices(program):
     return (
-        User.objects.filter(
-            memberships__program=program, memberships__role=ProgramMembership.Role.INSTRUCTOR
-        )
+        User.objects.filter(memberships__program=program, memberships__role=ProgramMembership.Role.INSTRUCTOR)
         .distinct()
         .order_by("last_name", "first_name")
     )
@@ -121,9 +116,7 @@ class POForm(BootstrapFormMixin, forms.ModelForm):
         model = ProgramOutcome
         fields = ["short_name", "description"]
         widgets = {"description": forms.Textarea(attrs={"rows": 4})}
-        help_texts = {
-            "description": "The official wording. Instructors map their LOs against this text."
-        }
+        help_texts = {"description": "The official wording. Instructors map their LOs against this text."}
 
 
 class POSetCopyForm(BootstrapFormMixin, forms.Form):
@@ -146,9 +139,7 @@ class POSetCopyForm(BootstrapFormMixin, forms.Form):
 
 
 class EnrollmentImportForm(forms.Form):
-    offering = forms.ModelChoiceField(
-        queryset=CourseOffering.objects.none(), label="Course offering"
-    )
+    offering = forms.ModelChoiceField(queryset=CourseOffering.objects.none(), label="Course offering")
     file = forms.FileField(
         label="Class list (CSV)",
         help_text="Columns: student_number, email, first_name, last_name, cohort_year",

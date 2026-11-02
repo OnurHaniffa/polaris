@@ -32,9 +32,7 @@ def course(request, offering_id):
         offering_id=offering_id,
         student=request.user,
     )
-    return render(
-        request, "reports/student_course.html", selectors.student_course_context(enrollment)
-    )
+    return render(request, "reports/student_course.html", selectors.student_course_context(enrollment))
 
 
 def transcript(request):

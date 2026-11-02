@@ -24,25 +24,19 @@ def test_score_filter(value, expected):
     assert score(value) == expected
 
 
-@pytest.mark.parametrize(
-    ("value", "expected"), [(D("0.2857"), "29%"), (D("1"), "100%"), (D("0.005"), "1%"), (None, "—")]
-)
+@pytest.mark.parametrize(("value", "expected"), [(D("0.2857"), "29%"), (D("1"), "100%"), (D("0.005"), "1%"), (None, "—")])
 def test_pct_filter(value, expected):
     assert pct(value) == expected
 
 
-@pytest.mark.parametrize(
-    ("value", "expected"), [(D("40.00"), "40"), (D("12.50"), "12.5"), (5, "5"), (None, "")]
-)
+@pytest.mark.parametrize(("value", "expected"), [(D("40.00"), "40"), (D("12.50"), "12.5"), (5, "5"), (None, "")])
 def test_weight_filter(value, expected):
     assert weight(value) == expected
 
 
 def test_query_transform_changes_one_key():
     request = RequestFactory().get("/department/", {"term": "2025F", "cohort": "2023"})
-    out = Template("{% load polaris %}{% query_transform term='2026F' cohort=None %}").render(
-        Context({"request": request})
-    )
+    out = Template("{% load polaris %}{% query_transform term='2026F' cohort=None %}").render(Context({"request": request}))
     assert out == "term=2026F"
 
 
@@ -55,18 +49,18 @@ def test_query_transform_changes_one_key():
     ],
 )
 def test_score_badge_include(value, css, text):
-    html = Template(
-        '{% include "includes/score_badge.html" with value=v threshold=t only %}'
-    ).render(Context({"v": value, "t": D("60")}))
+    html = Template('{% include "includes/score_badge.html" with value=v threshold=t only %}').render(
+        Context({"v": value, "t": D("60")})
+    )
     assert css in html
     assert text in html
 
 
 def test_threshold_boundary_counts_as_attained():
     """P11: attains when score >= threshold."""
-    html = Template(
-        '{% include "includes/score_badge.html" with value=v threshold=t only %}'
-    ).render(Context({"v": D("60"), "t": D("60")}))
+    html = Template('{% include "includes/score_badge.html" with value=v threshold=t only %}').render(
+        Context({"v": D("60"), "t": D("60")})
+    )
     assert "pl-badge-ok" in html
 
 

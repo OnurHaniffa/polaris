@@ -74,8 +74,7 @@ def l001_unassessed_lo(snap: MappingSnapshot) -> list[LintIssue]:
         LintIssue(
             "L001",
             ERROR,
-            f"LO {lo.number} isn't measured by any assessment, "
-            "so its score can never be calculated.",
+            f"LO {lo.number} isn't measured by any assessment, so its score can never be calculated.",
             f"LO {lo.number}",
         )
         for lo in snap.los
@@ -103,8 +102,7 @@ def l003_unused_assessment(snap: MappingSnapshot) -> list[LintIssue]:
         LintIssue(
             "L003",
             WARNING,
-            f"{a.name} doesn't feed any learning outcome, "
-            "so its grades are ignored by every score.",
+            f"{a.name} doesn't feed any learning outcome, so its grades are ignored by every score.",
             a.name,
         )
         for a in snap.assessments
@@ -122,9 +120,7 @@ def l004_course_weights(snap: MappingSnapshot) -> list[LintIssue]:
     message = f"Course weights add up to {_fmt(total)}%, not 100%."
     missing = sum(1 for a in snap.assessments if a.course_weight is None)
     if missing:
-        message += (
-            f" {missing} {_plural(missing, 'assessment has', 'assessments have')} no course weight."
-        )
+        message += f" {missing} {_plural(missing, 'assessment has', 'assessments have')} no course weight."
     return [LintIssue("L004", WARNING, message, "Assessments")]
 
 
@@ -197,9 +193,7 @@ RULES = (
 
 def run_lint(snap: MappingSnapshot) -> list[LintIssue]:
     issues = [issue for rule in RULES for issue in rule(snap)]
-    return sorted(
-        issues, key=lambda i: (SEVERITY_ORDER[i.severity], i.code)
-    )  # stable: keeps rule order
+    return sorted(issues, key=lambda i: (SEVERITY_ORDER[i.severity], i.code))  # stable: keeps rule order
 
 
 # ---------- counts for badges ----------

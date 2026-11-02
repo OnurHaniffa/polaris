@@ -36,11 +36,7 @@ RENUMBER_OFFSET = 1000
 
 def _lock_offering(offering: CourseOffering) -> CourseOffering:
     """Lock this offering's row until the transaction ends (spec §5.6) and return a fresh copy."""
-    return (
-        CourseOffering.objects.select_for_update(of=("self",))
-        .select_related("term", "course__program")
-        .get(pk=offering.pk)
-    )
+    return CourseOffering.objects.select_for_update(of=("self",)).select_related("term", "course__program").get(pk=offering.pk)
 
 
 # ---------- learning outcomes ----------
@@ -69,9 +65,7 @@ def update_lo(user, lo, *, description) -> LearningOutcome:
         before = snapshot(lo, LO_FIELDS)
         lo.description = description.strip()
         lo.save(update_fields=["description"])
-        record(
-            user, "lo.update", lo, before=before, after=snapshot(lo, LO_FIELDS), offering=offering
-        )
+        record(user, "lo.update", lo, before=before, after=snapshot(lo, LO_FIELDS), offering=offering)
         return lo
 
 
@@ -94,21 +88,12 @@ def delete_lo(user, lo) -> None:
         lo = LearningOutcome.objects.get(pk=lo.pk, offering=offering)
         before = snapshot(lo, LO_FIELDS)
         before["assessment_weights"] = {
-            str(a_id): str(w)
-            for a_id, w in lo.assessment_weights.values_list("assessment_id", "weight")
+            str(a_id): str(w) for a_id, w in lo.assessment_weights.values_list("assessment_id", "weight")
         }
-        before["po_weights"] = {
-            str(po_id): w for po_id, w in lo.po_weights.values_list("program_outcome_id", "weight")
-        }
-        record(
-            user, "lo.delete", lo, before=before, offering=offering
-        )  # before delete(): needs lo.pk
+        before["po_weights"] = {str(po_id): w for po_id, w in lo.po_weights.values_list("program_outcome_id", "weight")}
+        record(user, "lo.delete", lo, before=before, offering=offering)  # before delete(): needs lo.pk
         lo.delete()  # CASCADE removes AssessmentLOWeight and LOPOWeight rows
-        remaining = list(
-            LearningOutcome.objects.filter(offering=offering)
-            .order_by("number")
-            .values_list("id", flat=True)
-        )
+        remaining = list(LearningOutcome.objects.filter(offering=offering).order_by("number").values_list("id", flat=True))
         _renumber(offering, remaining)
 
 
@@ -118,9 +103,7 @@ def reorder_los(user, offering, ordered_ids: list[int]) -> None:
     with transaction.atomic():
         offering = _lock_offering(offering)
         ensure_term_open(offering)
-        current = dict(
-            LearningOutcome.objects.filter(offering=offering).values_list("id", "number")
-        )
+        current = dict(LearningOutcome.objects.filter(offering=offering).values_list("id", "number"))
         if len(ordered_ids) != len(set(ordered_ids)) or set(ordered_ids) != set(current):
             raise ValidationError(
                 "The list of outcomes changed while you were editing. Reload and try again.",
@@ -148,9 +131,7 @@ def _check_unique_name(offering, name: str, *, exclude_pk=None) -> None:
     if exclude_pk is not None:
         qs = qs.exclude(pk=exclude_pk)
     if qs.exists():
-        raise ValidationError(
-            {"name": f"There is already an assessment called “{name}” in this course."}
-        )
+        raise ValidationError({"name": f"There is already an assessment called “{name}” in this course."})
 
 
 def _check_fields(fields: dict) -> None:
@@ -191,9 +172,7 @@ def update_assessment(user, assessment, *, confirm_max_change=False, **fields) -
 
         new_max = fields.get("max_score", assessment.max_score)
         if new_max != assessment.max_score:
-            graded = assessment.grades.filter(
-                Q(score__isnull=False) | Q(published_score__isnull=False)
-            )
+            graded = assessment.grades.filter(Q(score__isnull=False) | Q(published_score__isnull=False))
             if graded.exists():
                 if not confirm_max_change:
                     raise ValidationError(
@@ -220,9 +199,7 @@ def update_assessment(user, assessment, *, confirm_max_change=False, **fields) -
         assessment.save()
         after = snapshot(assessment, ASSESSMENT_FIELDS)
         if after != before:
-            record(
-                user, "assessment.update", assessment, before=before, after=after, offering=offering
-            )
+            record(user, "assessment.update", assessment, before=before, after=after, offering=offering)
         return assessment
 
 
@@ -231,9 +208,7 @@ def delete_assessment(user, assessment) -> None:
         offering = _lock_offering(assessment.offering)
         ensure_term_open(offering)
         assessment = Assessment.objects.select_for_update().get(pk=assessment.pk, offering=offering)
-        published = assessment.grades.filter(
-            Q(published_at__isnull=False) | Q(published_score__isnull=False)
-        ).exists()
+        published = assessment.grades.filter(Q(published_at__isnull=False) | Q(published_score__isnull=False)).exists()
         if assessment.published_at is not None or published:
             raise ValidationError(
                 f"{assessment.name} has published grades, so it can't be deleted. "
@@ -242,8 +217,7 @@ def delete_assessment(user, assessment) -> None:
             )
         before = snapshot(assessment, ASSESSMENT_FIELDS)
         before["lo_weights"] = {
-            str(lo_id): str(w)
-            for lo_id, w in assessment.lo_weights.values_list("learning_outcome_id", "weight")
+            str(lo_id): str(w) for lo_id, w in assessment.lo_weights.values_list("learning_outcome_id", "weight")
         }
         before["draft_grades"] = assessment.grades.filter(score__isnull=False).count()
         record(user, "assessment.delete", assessment, before=before, offering=offering)
@@ -302,9 +276,7 @@ def _as_audit(rows) -> dict[str, str]:
     return {f"{r}:{c}": fmt_weight(w) for (r, c), w in sorted(rows.items())}
 
 
-def save_assessment_lo_matrix(
-    user, offering, cells: list[Cell], *, expected_version: str
-) -> MatrixSaveResult:
+def save_assessment_lo_matrix(user, offering, cells: list[Cell], *, expected_version: str) -> MatrixSaveResult:
     with transaction.atomic():
         offering = _lock_offering(offering)
         ensure_term_open(offering)
@@ -317,8 +289,7 @@ def save_assessment_lo_matrix(
             validator=validate_assessment_lo_cell,
         )
         existing = {
-            (w.assessment_id, w.learning_outcome_id): w
-            for w in AssessmentLOWeight.objects.filter(assessment__offering=offering)
+            (w.assessment_id, w.learning_outcome_id): w for w in AssessmentLOWeight.objects.filter(assessment__offering=offering)
         }
         before = _as_audit({k: w.weight for k, w in existing.items()})
 
@@ -329,11 +300,7 @@ def save_assessment_lo_matrix(
                 if current is not None:
                     to_delete.append(current.pk)
             elif current is None:
-                to_create.append(
-                    AssessmentLOWeight(
-                        assessment_id=key[0], learning_outcome_id=key[1], weight=value
-                    )
-                )
+                to_create.append(AssessmentLOWeight(assessment_id=key[0], learning_outcome_id=key[1], weight=value))
             elif current.weight != value:  # Decimal: 60.00 == 60, so no false updates
                 current.weight = value
                 to_update.append(current)
@@ -361,9 +328,7 @@ def save_assessment_lo_matrix(
         return result
 
 
-def save_lo_po_matrix(
-    user, offering, cells: list[Cell], *, expected_version: str
-) -> MatrixSaveResult:
+def save_lo_po_matrix(user, offering, cells: list[Cell], *, expected_version: str) -> MatrixSaveResult:
     """Like the assessment grid, plus provenance: a cell whose value a human changes becomes
     source=MANUAL with no rationale. Unchanged cells keep their source (lint L007 needs that)."""
     from apps.catalog.selectors import active_po_set

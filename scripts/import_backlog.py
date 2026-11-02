@@ -144,9 +144,7 @@ def ensure_labels_and_milestones(apply):
 def project_ids():
     projects = json.loads(gh("project", "list", "--owner", OWNER, "--format", "json"))["projects"]
     project = next(p for p in projects if p["title"] == PROJECT_TITLE)
-    fields = json.loads(
-        gh("project", "field-list", str(project["number"]), "--owner", OWNER, "--format", "json")
-    )["fields"]
+    fields = json.loads(gh("project", "field-list", str(project["number"]), "--owner", OWNER, "--format", "json"))["fields"]
     return project, {f["name"]: f for f in fields}
 
 
@@ -190,10 +188,7 @@ def main():
         )
     for row in rows:
         title = title_of(row)
-        print(
-            f"{title}  [{label_of(row)} · {row['points']} pts · {area_of(row)} · "
-            f"{priority_of(row)} · {milestone_of(row)}]"
-        )
+        print(f"{title}  [{label_of(row)} · {row['points']} pts · {area_of(row)} · {priority_of(row)} · {milestone_of(row)}]")
         if not apply or title in existing_titles:
             continue
         url = gh(

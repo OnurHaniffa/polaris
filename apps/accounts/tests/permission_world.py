@@ -45,9 +45,7 @@ class World:
 
 def _make_user(email, **extra):
     first = email.split("@")[0].title()
-    return User.objects.create_user(
-        email=email, password="pw", first_name=first, last_name="Test", **extra
-    )
+    return User.objects.create_user(email=email, password="pw", first_name=first, last_name="Test", **extra)
 
 
 def build_world() -> World:
@@ -73,12 +71,8 @@ def build_world() -> World:
         ),
     )
 
-    cse_course, _ = Course.objects.get_or_create(
-        program=cse, code="CSE 311", defaults=dict(title="Databases", credits=3, ects=6)
-    )
-    eee_course, _ = Course.objects.get_or_create(
-        program=eee, code="EEE 201", defaults=dict(title="Circuits", credits=3, ects=6)
-    )
+    cse_course, _ = Course.objects.get_or_create(program=cse, code="CSE 311", defaults=dict(title="Databases", credits=3, ects=6))
+    eee_course, _ = Course.objects.get_or_create(program=eee, code="EEE 201", defaults=dict(title="Circuits", credits=3, ects=6))
 
     open_offering, _ = CourseOffering.objects.get_or_create(course=cse_course, term=open_term)
     closed_offering, _ = CourseOffering.objects.get_or_create(course=cse_course, term=closed_term)
@@ -90,9 +84,7 @@ def build_world() -> World:
     other_instructor = _make_user("other_instructor@x.edu")
     head = _make_user("head@x.edu")
     other_head = _make_user("other_head@x.edu")
-    admin = User.objects.create_superuser(
-        email="admin@x.edu", password="pw", first_name="Ad", last_name="Min"
-    )
+    admin = User.objects.create_superuser(email="admin@x.edu", password="pw", first_name="Ad", last_name="Min")
 
     def member(user, program, role, **extra):
         ProgramMembership.objects.create(user=user, program=program, role=role, **extra)

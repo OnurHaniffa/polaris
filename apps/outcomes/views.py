@@ -59,9 +59,7 @@ def _page(request, template, offering, perms_for, current_tab, **extra):
 @login_required
 @require_offering_access()
 def setup(request, offering, perms_for):
-    can_manage_enrollment = request.user.is_superuser or is_head(
-        request.user, offering.course.program
-    )
+    can_manage_enrollment = request.user.is_superuser or is_head(request.user, offering.course.program)
     return _page(
         request,
         "outcomes/setup.html",
@@ -83,17 +81,13 @@ def lo_create(request, offering, perms_for):
     form = LearningOutcomeForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         try:
-            lo = services.create_lo(
-                request.user, offering, description=form.cleaned_data["description"]
-            )
+            lo = services.create_lo(request.user, offering, description=form.cleaned_data["description"])
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
             messages.success(request, f"Added LO {lo.number}.")
             return redirect(_setup_url(offering, "los"))
-    return _page(
-        request, "outcomes/lo_form.html", offering, perms_for, "outcomes:setup", form=form, lo=None
-    )
+    return _page(request, "outcomes/lo_form.html", offering, perms_for, "outcomes:setup", form=form, lo=None)
 
 
 @login_required
@@ -109,9 +103,7 @@ def lo_edit(request, lo_id, offering, perms_for):
         else:
             messages.success(request, f"Saved LO {lo.number}.")
             return redirect(_setup_url(offering, "los"))
-    return _page(
-        request, "outcomes/lo_form.html", offering, perms_for, "outcomes:setup", form=form, lo=lo
-    )
+    return _page(request, "outcomes/lo_form.html", offering, perms_for, "outcomes:setup", form=form, lo=lo)
 
 
 def _confirm_delete(request, offering, perms_for, impact, action_url):
@@ -119,9 +111,7 @@ def _confirm_delete(request, offering, perms_for, impact, action_url):
     context = {"impact": impact, "action_url": action_url, "as_modal": bool(request.htmx)}
     if request.htmx:
         return render(request, "outcomes/confirm_delete.html#body", context)
-    return _page(
-        request, "outcomes/confirm_delete.html", offering, perms_for, "outcomes:setup", **context
-    )
+    return _page(request, "outcomes/confirm_delete.html", offering, perms_for, "outcomes:setup", **context)
 
 
 @login_required
@@ -135,9 +125,7 @@ def lo_delete(request, lo_id, offering, perms_for):
         except ValidationError as exc:
             messages.error(request, " ".join(exc.messages))
         else:
-            messages.success(
-                request, f"Deleted LO {number}. The outcomes after it were renumbered."
-            )
+            messages.success(request, f"Deleted LO {number}. The outcomes after it were renumbered.")
         return redirect(_setup_url(offering, "los"))
     action = reverse("outcomes:lo_delete", kwargs={"offering_id": offering.pk, "lo_id": lo.pk})
     return _confirm_delete(request, offering, perms_for, lo_deletion_impact(lo), action)
@@ -234,9 +222,7 @@ def assessment_delete(request, assessment_id, offering, perms_for):
         "outcomes:assessment_delete",
         kwargs={"offering_id": offering.pk, "assessment_id": assessment.pk},
     )
-    return _confirm_delete(
-        request, offering, perms_for, assessment_deletion_impact(assessment), action
-    )
+    return _confirm_delete(request, offering, perms_for, assessment_deletion_impact(assessment), action)
 
 
 GRID_LABEL = {A_LO: "assessment → LO", LO_PO: "LO → PO"}
@@ -260,9 +246,7 @@ def _mapping_page(request, offering, perms_for, *, failed=None, status=200):
         if getattr(exc, "code", None) == "stale":
             stale_kind = kind
             overlay_submitted(grid, cells)
-            grid.version = (
-                posted_version  # keep the old version: re-submitting stays refused until reload
-            )
+            grid.version = posted_version  # keep the old version: re-submitting stays refused until reload
         else:
             overlay_submitted(grid, cells, _cell_errors(exc))
     return render(
@@ -296,16 +280,12 @@ def _save_grid(request, offering, perms_for, kind):
         result = save(request.user, offering, cells, expected_version=posted_version)
     except ValidationError as exc:
         code = 409 if getattr(exc, "code", None) == "stale" else 422
-        return _mapping_page(
-            request, offering, perms_for, failed=(kind, cells, posted_version, exc), status=code
-        )
+        return _mapping_page(request, offering, perms_for, failed=(kind, cells, posted_version, exc), status=code)
     if result.changed:
         messages.success(request, f"Saved the {GRID_LABEL[kind]} weights.")
     else:
         messages.info(request, "Nothing changed.")
-    return redirect(
-        reverse("outcomes:mapping", kwargs={"offering_id": offering.pk}) + f"#{GRID_ANCHOR[kind]}"
-    )
+    return redirect(reverse("outcomes:mapping", kwargs={"offering_id": offering.pk}) + f"#{GRID_ANCHOR[kind]}")
 
 
 @login_required
@@ -340,6 +320,4 @@ def validate_cell(request, offering, perms_for):
         error = exc.messages[0]
     cell = GridCell(name=name, value=raw, label=request.POST.get("label", "")[:200], error=error)
     grid = WeightGrid(kind=kind, caption="", cols=[], rows=[], validate_url=request.path)
-    return render(
-        request, "includes/weight_grid.html#cell", {"cell": cell, "grid": grid, "editable": True}
-    )
+    return render(request, "includes/weight_grid.html#cell", {"cell": cell, "grid": grid, "editable": True})

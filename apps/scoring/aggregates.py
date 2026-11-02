@@ -86,9 +86,7 @@ def class_lo_summary(offering) -> ClassLOSummary:
         profile = compute_student_profile([off_inputs]) if off_inputs else None
         scores: dict[int, NodeScore] = {}
         for lo in los:
-            ns = (
-                profile.lo_scores.get((offering.id, lo.id), NO_EVIDENCE) if profile else NO_EVIDENCE
-            )
+            ns = profile.lo_scores.get((offering.id, lo.id), NO_EVIDENCE) if profile else NO_EVIDENCE
             scores[lo.id] = ns
             if ns.score is not None:
                 lo_values[lo.id].append(ns.score)
@@ -123,11 +121,7 @@ def class_lo_summary(offering) -> ClassLOSummary:
             )
         )
 
-    pos = (
-        ProgramOutcome.objects.filter(lo_weights__learning_outcome__offering=offering)
-        .distinct()
-        .order_by("number")
-    )
+    pos = ProgramOutcome.objects.filter(lo_weights__learning_outcome__offering=offering).distinct().order_by("number")
     contribution = [
         POContribution(
             po_id=po.id,
@@ -138,9 +132,7 @@ def class_lo_summary(offering) -> ClassLOSummary:
         )
         for po in pos
     ]
-    return ClassLOSummary(
-        los=stats, rows=rows, po_contribution=contribution, enrolled=len(enrollments)
-    )
+    return ClassLOSummary(los=stats, rows=rows, po_contribution=contribution, enrolled=len(enrollments))
 
 
 @dataclass(frozen=True)
@@ -182,9 +174,7 @@ def program_po_summary(program, *, terms, include_open_terms, cohort=None) -> li
 
     values: dict[int, list[Decimal]] = {po.id: [] for po in pos}
     for student in students.distinct().order_by("pk").iterator():
-        inputs = load_student_inputs(
-            student, include_open_terms=include_open_terms, up_to_term=up_to_term
-        )
+        inputs = load_student_inputs(student, include_open_terms=include_open_terms, up_to_term=up_to_term)
         if not inputs:
             continue
         profile = compute_student_profile(inputs)

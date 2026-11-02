@@ -27,16 +27,12 @@ def cells(mapping):
 
 def save_a_lo(course, mapping, *, version=None, user=None):
     version = matrix_version(course.offering, A_LO) if version is None else version
-    return services.save_assessment_lo_matrix(
-        user or course.teacher, course.offering, cells(mapping), expected_version=version
-    )
+    return services.save_assessment_lo_matrix(user or course.teacher, course.offering, cells(mapping), expected_version=version)
 
 
 def save_lo_po(course, mapping, *, version=None, user=None):
     version = matrix_version(course.offering, LO_PO) if version is None else version
-    return services.save_lo_po_matrix(
-        user or course.teacher, course.offering, cells(mapping), expected_version=version
-    )
+    return services.save_lo_po_matrix(user or course.teacher, course.offering, cells(mapping), expected_version=version)
 
 
 def a_lo_rows(course):
@@ -95,9 +91,7 @@ def test_one_bad_cell_saves_nothing(course, raw):
 
 
 def test_cell_from_another_course_is_rejected(course):
-    other_lo = LearningOutcomeFactory(
-        offering=OfferingFactory(course__program=course.program, term=course.term), number=1
-    )
+    other_lo = LearningOutcomeFactory(offering=OfferingFactory(course__program=course.program, term=course.term), number=1)
     with pytest.raises(ValidationError) as exc:
         save_a_lo(course, {(course.midterm, other_lo): "50"})
     assert "isn't part of this course" in str(exc.value)
@@ -105,9 +99,7 @@ def test_cell_from_another_course_is_rejected(course):
 
 
 def test_po_from_an_inactive_set_is_rejected(course):
-    old_set = ProgramOutcomeSetFactory(
-        program=course.program, label="2018 curriculum", effective_from_year=2018, is_active=False
-    )
+    old_set = ProgramOutcomeSetFactory(program=course.program, label="2018 curriculum", effective_from_year=2018, is_active=False)
     old_po = ProgramOutcomeFactory(po_set=old_set, number=1)
     with pytest.raises(ValidationError):
         save_lo_po(course, {(course.lo1, old_po): "3"})
