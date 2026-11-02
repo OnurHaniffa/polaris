@@ -9,19 +9,28 @@ class Command(BaseCommand):
     help = "Build the demo department described in spec Appendix B."
 
     def add_arguments(self, parser):
-        parser.add_argument("--reset", action="store_true",
-                            help="Delete ALL terms, courses, offerings, grades and demo accounts first.")
-        parser.add_argument("--small", action="store_true",
-                            help="10 students per cohort instead of 40 (used by the tests).")
-        parser.add_argument("--allow-production", action="store_true",
-                            help="Allow running with DEBUG=False (staging). Passwords become random.")
+        parser.add_argument(
+            "--reset",
+            action="store_true",
+            help="Delete ALL terms, courses, offerings, grades and demo accounts first.",
+        )
+        parser.add_argument(
+            "--small",
+            action="store_true",
+            help="10 students per cohort instead of 40 (used by the tests).",
+        )
+        parser.add_argument(
+            "--allow-production",
+            action="store_true",
+            help="Allow running with DEBUG=False (staging). Passwords become random.",
+        )
 
     def handle(self, *args, reset=False, small=False, allow_production=False, **options):
         if not settings.DEBUG and not allow_production:
-            raise CommandError("DEBUG is False. Seeding writes demo accounts; pass --allow-production "
-                               "if this really is a demo environment.")
-        builder = DemoBuilder(students_per_cohort=10 if small else 40,
-                              random_passwords=not settings.DEBUG)
+            raise CommandError(
+                "DEBUG is False. Seeding writes demo accounts; pass --allow-production if this really is a demo environment."
+            )
+        builder = DemoBuilder(students_per_cohort=10 if small else 40, random_passwords=not settings.DEBUG)
         with transaction.atomic():
             if reset:
                 builder.wipe()
