@@ -34,9 +34,7 @@ def po_set_ids_for_students(student_ids, program):
     if not active:
         raise ProgramOutcomeSet.DoesNotExist(f"{program} has no active PO set")
     active_id, active_year = active[0]
-    candidates = [
-        (set_id, year) for set_id, year, is_active in sets if is_active or year < active_year
-    ]
+    candidates = [(set_id, year) for set_id, year, is_active in sets if is_active or year < active_year]
 
     cohorts = dict(
         ProgramMembership.objects.filter(
@@ -71,9 +69,7 @@ def offerings_for_user(user, *, term=None):
     qs = CourseOffering.objects.select_related("course", "term")
 
     if not user.is_superuser:
-        headed_programs = user.memberships.filter(role=ProgramMembership.Role.HEAD).values(
-            "program_id"
-        )
+        headed_programs = user.memberships.filter(role=ProgramMembership.Role.HEAD).values("program_id")
 
         qs = qs.filter(Q(course__program_id__in=headed_programs) | Q(instructors=user)).distinct()
 
@@ -158,11 +154,7 @@ def setup_statuses(offering_ids) -> dict[int, SetupStatus]:
             x_los=Exists(LearningOutcome.objects.filter(offering=OuterRef("pk"))),
             x_al=Exists(AssessmentLOWeight.objects.filter(assessment__offering=OuterRef("pk"))),
             x_lp=Exists(LOPOWeight.objects.filter(learning_outcome__offering=OuterRef("pk"))),
-            x_students=Exists(
-                Enrollment.objects.filter(
-                    offering=OuterRef("pk"), status=Enrollment.Status.ENROLLED
-                )
-            ),
+            x_students=Exists(Enrollment.objects.filter(offering=OuterRef("pk"), status=Enrollment.Status.ENROLLED)),
             n_assessments=Count("assessments", distinct=True),
             n_published=Count(
                 "assessments",

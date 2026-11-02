@@ -87,10 +87,7 @@ def test_l004_course_weights_not_100():
         ),
     )
     [issue] = l004_course_weights(snap)
-    assert (
-        issue.message
-        == "Course weights add up to 90%, not 100%. 1 assessment has no course weight."
-    )
+    assert issue.message == "Course weights add up to 90%, not 100%. 1 assessment has no course weight."
 
 
 def test_l004_quiet_when_no_course_weights_at_all():
@@ -121,9 +118,7 @@ def test_l006_quiet_without_any_links():
 
 
 def test_l007_unconfirmed_ai_weights():
-    snap = replace(
-        CLEAN, lo_po=(link(1, 1, 3, AI_SUGGESTED), link(1, 2, 2), link(2, 3, 3, AI_SUGGESTED))
-    )
+    snap = replace(CLEAN, lo_po=(link(1, 1, 3, AI_SUGGESTED), link(1, 2, 2), link(2, 3, 3, AI_SUGGESTED)))
     [issue] = l007_unconfirmed_ai(snap)
     assert (issue.code, issue.severity) == ("L007", WARNING)
     assert issue.message.startswith("2 LO → PO weights suggested by AI have not been checked")

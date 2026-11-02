@@ -22,9 +22,7 @@ from apps.core.tests.factories import (
 @pytest.fixture
 def course(db):
     program = ProgramFactory(code="TST")  # "CSE" is the real program from the data migration
-    po_set = ProgramOutcomeSetFactory(
-        program=program, label="2023 curriculum", effective_from_year=2020, is_active=True
-    )
+    po_set = ProgramOutcomeSetFactory(program=program, label="2023 curriculum", effective_from_year=2020, is_active=True)
     po1 = ProgramOutcomeFactory(po_set=po_set, number=1, short_name="Math & science")
     po2 = ProgramOutcomeFactory(po_set=po_set, number=2, short_name="Problem solving")
     po3 = ProgramOutcomeFactory(po_set=po_set, number=3, short_name="Design")

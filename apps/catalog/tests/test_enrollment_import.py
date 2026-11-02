@@ -76,10 +76,7 @@ def test_classifies_new_existing_and_enrolled(offering):
 
 
 def test_turkish_excel_csv_is_decoded(offering):
-    text = (
-        "student_number;email;first_name;last_name;cohort_year\n"
-        "2024-0001;sukru@example.edu;Şükrü;Öztürk;2024\n"
-    )
+    text = "student_number;email;first_name;last_name;cohort_year\n2024-0001;sukru@example.edu;Şükrü;Öztürk;2024\n"
     preview = parse_enrollment_csv(upload(text, encoding="cp1254"), offering=offering)
     assert preview.file_errors == []
     assert (preview.rows[0].first_name, preview.rows[0].last_name) == ("Şükrü", "Öztürk")
@@ -94,9 +91,7 @@ def test_missing_columns_is_a_file_error(offering):
 def test_confirm_creates_accounts_enrolls_audits_and_emails(
     offering, head, settings, mailoutbox, django_capture_on_commit_callbacks
 ):
-    job = create_enrollment_import_job(
-        head, offering, upload(HEADER + "2024-0001,new@example.edu,Ada,Lovelace,2024\n")
-    )
+    job = create_enrollment_import_job(head, offering, upload(HEADER + "2024-0001,new@example.edu,Ada,Lovelace,2024\n"))
 
     with django_capture_on_commit_callbacks(execute=True):
         result = confirm_enrollment_import(head, job)
@@ -138,9 +133,7 @@ def test_reimporting_the_same_file_changes_nothing(offering, head):
 
 
 def test_confirm_refuses_when_data_changed_since_preview(offering, head):
-    job = create_enrollment_import_job(
-        head, offering, upload(HEADER + "2024-0001,new@example.edu,Ada,Lovelace,2024\n")
-    )
+    job = create_enrollment_import_job(head, offering, upload(HEADER + "2024-0001,new@example.edu,Ada,Lovelace,2024\n"))
     UserFactory(student_number="2024-0001", email="new@example.edu")
     with pytest.raises(PreviewOutdated) as exc:
         confirm_enrollment_import(head, job)
@@ -151,18 +144,14 @@ def test_confirm_refuses_when_data_changed_since_preview(offering, head):
 
 
 def test_closed_term_refuses(offering, head):
-    job = create_enrollment_import_job(
-        head, offering, upload(HEADER + "2024-0001,new@example.edu,Ada,Lovelace,2024\n")
-    )
+    job = create_enrollment_import_job(head, offering, upload(HEADER + "2024-0001,new@example.edu,Ada,Lovelace,2024\n"))
     Term.objects.filter(pk=offering.term_id).update(status=Term.Status.CLOSED)
     with pytest.raises(ValidationError):
         confirm_enrollment_import(head, job)
 
 
 def test_second_confirm_is_refused(offering, head):
-    job = create_enrollment_import_job(
-        head, offering, upload(HEADER + "2024-0001,new@example.edu,Ada,Lovelace,2024\n")
-    )
+    job = create_enrollment_import_job(head, offering, upload(HEADER + "2024-0001,new@example.edu,Ada,Lovelace,2024\n"))
     confirm_enrollment_import(head, job)
     with pytest.raises(ValidationError, match="already applied"):
         confirm_enrollment_import(head, job)
@@ -171,9 +160,7 @@ def test_second_confirm_is_refused(offering, head):
 def test_dropped_student_is_re_enrolled(offering, head):
     student = UserFactory(student_number="2024-0001", email="back@example.edu")
     EnrollmentFactory(offering=offering, student=student, status="dropped")
-    job = create_enrollment_import_job(
-        head, offering, upload(HEADER + "2024-0001,back@example.edu,Back,Again,2024\n")
-    )
+    job = create_enrollment_import_job(head, offering, upload(HEADER + "2024-0001,back@example.edu,Back,Again,2024\n"))
     result = confirm_enrollment_import(head, job)
     assert result.reactivated == 1
     assert Enrollment.objects.get(offering=offering, student=student).status == "enrolled"

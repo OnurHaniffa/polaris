@@ -10,12 +10,8 @@ def url(name, course):
     return reverse(f"outcomes:{name}", kwargs={"offering_id": course.offering.pk})
 
 
-def test_mapping_page_shows_both_grids_with_saved_values(
-    teacher_client, course, django_assert_max_num_queries
-):
-    AssessmentLOWeight.objects.create(
-        assessment=course.midterm, learning_outcome=course.lo1, weight="60.00"
-    )
+def test_mapping_page_shows_both_grids_with_saved_values(teacher_client, course, django_assert_max_num_queries):
+    AssessmentLOWeight.objects.create(assessment=course.midterm, learning_outcome=course.lo1, weight="60.00")
     with django_assert_max_num_queries(20):
         response = teacher_client.get(url("mapping", course))
     html = response.content.decode()
@@ -42,9 +38,7 @@ def test_valid_save_redirects_to_the_grid(teacher_client, course):
 def test_invalid_cells_answer_422_and_keep_what_was_typed(teacher_client, course):
     """B5 AC2."""
     name = f"lo_po-{course.lo1.pk}-{course.po1.pk}"
-    response = teacher_client.post(
-        url("save_lo_po", course), {"version": matrix_version(course.offering, LO_PO), name: "6"}
-    )
+    response = teacher_client.post(url("save_lo_po", course), {"version": matrix_version(course.offering, LO_PO), name: "6"})
     html = response.content.decode()
     assert response.status_code == 422
     assert f'name="{name}" value="6"' in html
@@ -100,9 +94,7 @@ def test_validate_cell_accepts_a_good_value(teacher_client, course):
 
 def test_validate_cell_refuses_a_mismatched_kind(teacher_client, course):
     name = f"a_lo-{course.midterm.pk}-{course.lo1.pk}"
-    response = teacher_client.post(
-        url("validate_cell", course), {"kind": LO_PO, "name": name, name: "3"}
-    )
+    response = teacher_client.post(url("validate_cell", course), {"kind": LO_PO, "name": name, name: "3"})
     assert response.status_code == 400
 
 

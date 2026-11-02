@@ -33,9 +33,7 @@ def weighted_average(pairs: Iterable[tuple[Decimal, Decimal]]) -> Decimal | None
     return None if den == ZERO else num / den
 
 
-def propagate(
-    source_scores: Mapping[Hashable, Decimal], edges: Iterable[Edge]
-) -> dict[Hashable, NodeScore]:
+def propagate(source_scores: Mapping[Hashable, Decimal], edges: Iterable[Edge]) -> dict[Hashable, NodeScore]:
     inbound: dict[Hashable, list[Edge]] = defaultdict(list)
     for e in edges:
         if e.weight <= ZERO:

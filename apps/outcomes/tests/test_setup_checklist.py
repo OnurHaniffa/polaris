@@ -19,9 +19,7 @@ def test_status_of_a_half_set_up_course(course):
 
 
 def test_status_of_a_complete_course(course):
-    AssessmentLOWeight.objects.create(
-        assessment=course.midterm, learning_outcome=course.lo1, weight=Decimal("60")
-    )
+    AssessmentLOWeight.objects.create(assessment=course.midterm, learning_outcome=course.lo1, weight=Decimal("60"))
     LOPOWeight.objects.create(learning_outcome=course.lo1, program_outcome=course.po1, weight=3)
     EnrollmentFactory(offering=course.offering)
     Assessment.objects.filter(pk=course.midterm.pk).update(published_at=timezone.now())

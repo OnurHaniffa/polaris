@@ -25,9 +25,7 @@ def _plain(value: Decimal) -> str:
     return format(value.normalize(), "f")
 
 
-def parse_score_input(
-    raw: str | None, max_score: Decimal, *, label: str = "this assessment"
-) -> tuple[Decimal | None, bool]:
+def parse_score_input(raw: str | None, max_score: Decimal, *, label: str = "this assessment") -> tuple[Decimal | None, bool]:
     """Turn what an instructor typed into (score, is_excused).
 
     ""          -> (None, False)   no grade
@@ -77,11 +75,7 @@ def save_grade(user, assessment, enrollment, raw: str | None) -> Grade | None:
 
     with transaction.atomic():
         _lock_open_term(offering)
-        grade = (
-            Grade.objects.select_for_update()
-            .filter(assessment=assessment, enrollment=enrollment)
-            .first()
-        )
+        grade = Grade.objects.select_for_update().filter(assessment=assessment, enrollment=enrollment).first()
         if grade is None:
             if score is None and not is_excused:
                 return None  # blank cell, no grade: nothing to write

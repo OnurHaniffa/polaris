@@ -73,15 +73,10 @@ def set_term_status(user, term: Term, status: str, *, reason: str = "") -> Term:
     term = Term.objects.select_for_update().get(pk=term.pk)
     action = TERM_TRANSITIONS.get((term.status, status))
     if action is None:
-        raise ValidationError(
-            f"A term can't go from {term.get_status_display().lower()} "
-            f"to {Term.Status(status).label.lower()}."
-        )
+        raise ValidationError(f"A term can't go from {term.get_status_display().lower()} to {Term.Status(status).label.lower()}.")
     reason = reason.strip()
     if action == "term.reopen" and len(reason) < 10:
-        raise ValidationError(
-            {"reason": "Say why the term is being reopened (at least 10 characters)."}
-        )
+        raise ValidationError({"reason": "Say why the term is being reopened (at least 10 characters)."})
     before = {"status": term.status}
     term.status = status
     term.save(update_fields=["status"])
@@ -104,11 +99,7 @@ def save_course(user, course: Course | None = None, **fields) -> Course:
     for name, value in fields.items():
         setattr(course, name, value)
     course.code = " ".join(course.code.upper().split())  # "cse  311" -> "CSE 311"
-    if (
-        Course.objects.filter(program=course.program, code=course.code)
-        .exclude(pk=course.pk)
-        .exists()
-    ):
+    if Course.objects.filter(program=course.program, code=course.code).exclude(pk=course.pk).exists():
         raise ValidationError({"code": f"{course.code} already exists in {course.program.code}."})
     course.full_clean()
     course.save()
@@ -151,51 +142,35 @@ def _offering_snapshot(offering: CourseOffering) -> dict:
 
 
 @transaction.atomic
-def create_offering(
-    user, *, course: Course, term: Term, section: str = "1", instructors=()
-) -> CourseOffering:
+def create_offering(user, *, course: Course, term: Term, section: str = "1", instructors=()) -> CourseOffering:
     if term.status == Term.Status.CLOSED:
-        raise ValidationError(
-            {"term": f"{term.name} is closed. Reopen it before adding offerings."}
-        )
+        raise ValidationError({"term": f"{term.name} is closed. Reopen it before adding offerings."})
     section = (section or "1").strip()
     if CourseOffering.objects.filter(course=course, term=term, section=section).exists():
-        raise ValidationError(
-            {"section": f"{course.code} section {section} already exists in {term.name}."}
-        )
+        raise ValidationError({"section": f"{course.code} section {section} already exists in {term.name}."})
     instructors = _check_instructors(course.program, instructors)
     offering = CourseOffering(course=course, term=term, section=section)
     offering.full_clean()
     try:
         offering.save()
     except IntegrityError as exc:  # two heads, same click, same second
-        raise ValidationError(
-            "This offering was just created by someone else. Reload the page."
-        ) from exc
+        raise ValidationError("This offering was just created by someone else. Reload the page.") from exc
     offering.instructors.set(instructors)
-    audit.record(
-        user, "offering.create", offering, offering=offering, after=_offering_snapshot(offering)
-    )
+    audit.record(user, "offering.create", offering, offering=offering, after=_offering_snapshot(offering))
     return offering
 
 
 @transaction.atomic
-def update_offering(
-    user, offering: CourseOffering, *, section: str | None = None, instructors=None
-) -> CourseOffering:
+def update_offering(user, offering: CourseOffering, *, section: str | None = None, instructors=None) -> CourseOffering:
     """Change the section label and/or the instructor list. Course and term never change:
     create a new offering instead, so grades never move between courses."""
     ensure_term_open(offering)
     before = _offering_snapshot(offering)
     if section is not None:
         section = section.strip()
-        clash = CourseOffering.objects.filter(
-            course=offering.course, term=offering.term, section=section
-        )
+        clash = CourseOffering.objects.filter(course=offering.course, term=offering.term, section=section)
         if clash.exclude(pk=offering.pk).exists():
-            raise ValidationError(
-                {"section": f"Section {section} already exists for this course and term."}
-            )
+            raise ValidationError({"section": f"Section {section} already exists for this course and term."})
         offering.section = section
         offering.full_clean()
         offering.save(update_fields=["section"])
@@ -221,17 +196,11 @@ def enroll(user, offering: CourseOffering, student) -> Enrollment:
     B3 AC 4: duplicates are refused with a message."""
     ensure_term_open(offering)
     program = offering.course.program
-    if not student.memberships.filter(
-        program=program, role=ProgramMembership.Role.STUDENT
-    ).exists():
+    if not student.memberships.filter(program=program, role=ProgramMembership.Role.STUDENT).exists():
         raise ValidationError(f"{student.get_full_name()} is not a {program.code} student.")
-    existing = (
-        Enrollment.objects.select_for_update().filter(offering=offering, student=student).first()
-    )
+    existing = Enrollment.objects.select_for_update().filter(offering=offering, student=student).first()
     if existing and existing.status == Enrollment.Status.ENROLLED:
-        raise ValidationError(
-            f"{student.get_full_name()} ({student.student_number}) is already enrolled."
-        )
+        raise ValidationError(f"{student.get_full_name()} ({student.student_number}) is already enrolled.")
     if existing:
         existing.status = Enrollment.Status.ENROLLED
         existing.save(update_fields=["status"])
@@ -282,9 +251,7 @@ def drop(user, enrollment: Enrollment) -> Enrollment:
 
 
 @transaction.atomic
-def copy_po_set(
-    user, po_set: ProgramOutcomeSet, *, label: str, effective_from_year: int
-) -> ProgramOutcomeSet:
+def copy_po_set(user, po_set: ProgramOutcomeSet, *, label: str, effective_from_year: int) -> ProgramOutcomeSet:
     """B2 AC 2: a new version starts as an exact copy of the old one, inactive."""
     label = label.strip()
     if ProgramOutcomeSet.objects.filter(program=po_set.program, label=label).exists():
@@ -296,9 +263,7 @@ def copy_po_set(
         is_active=False,
     )
     ProgramOutcome.objects.bulk_create(
-        ProgramOutcome(
-            po_set=new_set, number=po.number, short_name=po.short_name, description=po.description
-        )
+        ProgramOutcome(po_set=new_set, number=po.number, short_name=po.short_name, description=po.description)
         for po in po_set.outcomes.all()
     )
     audit.record(
@@ -350,9 +315,9 @@ def update_po(user, po: ProgramOutcome, **fields) -> ProgramOutcome:
 
 def courses_using_po(po: ProgramOutcome) -> list[str]:
     """Human labels of the offerings whose LOs link to this PO, e.g. 'CSE 311 (Fall 2026)'."""
-    rows = po.lo_weights.select_related(
-        "learning_outcome__offering__course", "learning_outcome__offering__term"
-    ).order_by("learning_outcome__offering__course__code")
+    rows = po.lo_weights.select_related("learning_outcome__offering__course", "learning_outcome__offering__term").order_by(
+        "learning_outcome__offering__course__code"
+    )
     labels = []
     for w in rows:
         o = w.learning_outcome.offering
@@ -367,9 +332,6 @@ def delete_po(user, po: ProgramOutcome) -> None:
     """B2 AC 3: a PO with LO→PO weights can't be deleted; the message names the courses."""
     used_by = courses_using_po(po)
     if used_by:
-        raise ValidationError(
-            f"PO {po.number} is used by {', '.join(used_by)}. "
-            "Edit its wording instead of deleting it."
-        )
+        raise ValidationError(f"PO {po.number} is used by {', '.join(used_by)}. Edit its wording instead of deleting it.")
     audit.record(user, "po.delete", po, before=audit.snapshot(po, PO_FIELDS))
     po.delete()

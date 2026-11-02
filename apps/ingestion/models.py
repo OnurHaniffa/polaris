@@ -15,9 +15,7 @@ class IngestionJob(models.Model):
         FAILED = "failed", "Failed"
         DISCARDED = "discarded", "Discarded"
 
-    offering = models.ForeignKey(
-        "catalog.CourseOffering", on_delete=models.CASCADE, related_name="ingestion_jobs"
-    )
+    offering = models.ForeignKey("catalog.CourseOffering", on_delete=models.CASCADE, related_name="ingestion_jobs")
     kind = models.CharField(max_length=12, choices=Kind.choices)
     file = models.FileField(upload_to="uploads/%Y/%m/")
     original_filename = models.CharField(max_length=255)

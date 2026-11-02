@@ -24,10 +24,7 @@ def roles_of(user) -> set[str]:
 
     cached = getattr(user, _CACHE_ATTR, None)
     if cached is None:
-        cached = frozenset(
-            set(user.memberships.values_list("role", flat=True))
-            | ({"admin"} if user.is_superuser else set())
-        )
+        cached = frozenset(set(user.memberships.values_list("role", flat=True)) | ({"admin"} if user.is_superuser else set()))
         setattr(user, _CACHE_ATTR, cached)
 
     return set(cached)
@@ -57,12 +54,7 @@ def head_program(user):
     if not _authenticated(user):
         return None
 
-    membership = (
-        user.memberships.filter(role=Role.HEAD)
-        .select_related("program")
-        .order_by("program__code")
-        .first()
-    )
+    membership = user.memberships.filter(role=Role.HEAD).select_related("program").order_by("program__code").first()
     if membership:
         return membership.program
 

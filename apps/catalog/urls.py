@@ -37,8 +37,6 @@ urlpatterns = [
     path("department/courses/<int:course_id>/edit/", views.course_edit, name="course_edit"),
     path("department/offerings/", views.offerings, name="offerings"),
     path("department/offerings/<int:offering_id>/edit/", views.offering_edit, name="offering_edit"),
-    path(
-        "department/offerings/<int:offering_id>/enrollments/", views.enrollments, name="enrollments"
-    ),
+    path("department/offerings/<int:offering_id>/enrollments/", views.enrollments, name="enrollments"),
     # S3-05 adds: enrollment_import, enrollment_import_preview, enrollment_import_confirm
 ]

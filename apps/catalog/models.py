@@ -8,9 +8,7 @@ from django.db.models import F, Q
 class Program(models.Model):
     code = models.CharField(max_length=16, unique=True)  # "CSE"
     name = models.CharField(max_length=200)
-    attainment_threshold = models.DecimalField(
-        max_digits=5, decimal_places=2, default=Decimal("60")
-    )
+    attainment_threshold = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("60"))
 
     def __str__(self):
         return self.code
@@ -46,9 +44,7 @@ class ProgramOutcome(models.Model):
         ordering = ["number"]
         constraints = [
             models.UniqueConstraint(fields=["po_set", "number"], name="uniq_po_number"),
-            models.CheckConstraint(
-                condition=Q(number__gte=1) & Q(number__lte=30), name="po_number_range"
-            ),
+            models.CheckConstraint(condition=Q(number__gte=1) & Q(number__lte=30), name="po_number_range"),
         ]
 
     def __str__(self):
@@ -70,9 +66,7 @@ class Term(models.Model):
     class Meta:
         ordering = ["-starts_on"]
         constraints = [
-            models.CheckConstraint(
-                condition=Q(ends_on__gt=F("starts_on")), name="term_dates_ordered"
-            ),
+            models.CheckConstraint(condition=Q(ends_on__gt=F("starts_on")), name="term_dates_ordered"),
         ]
 
     def __str__(self):
@@ -98,9 +92,7 @@ class CourseOffering(models.Model):
     course = models.ForeignKey(Course, on_delete=models.PROTECT, related_name="offerings")
     term = models.ForeignKey(Term, on_delete=models.PROTECT, related_name="offerings")
     section = models.CharField(max_length=8, default="1")
-    instructors = models.ManyToManyField(
-        settings.AUTH_USER_MODEL, related_name="teaching", blank=True
-    )
+    instructors = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="teaching", blank=True)
     syllabus = models.FileField(upload_to="syllabi/%Y/", null=True, blank=True)
     cloned_from = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -120,12 +112,8 @@ class Enrollment(models.Model):
         ENROLLED = "enrolled", "Enrolled"
         DROPPED = "dropped", "Dropped"
 
-    offering = models.ForeignKey(
-        CourseOffering, on_delete=models.CASCADE, related_name="enrollments"
-    )
-    student = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="enrollments"
-    )
+    offering = models.ForeignKey(CourseOffering, on_delete=models.CASCADE, related_name="enrollments")
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="enrollments")
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ENROLLED)
     enrolled_at = models.DateTimeField(auto_now_add=True)
 

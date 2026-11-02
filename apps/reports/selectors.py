@@ -79,9 +79,7 @@ def _chart_data(rows: list[PORow], threshold: Decimal) -> dict:
         "labels": [f"PO {r.po.number}" for r in rows],
         "names": [r.po.short_name for r in rows],
         "values": [None if r.score is None else float(display(r.score)) for r in rows],
-        "states": [
-            "none" if r.attained is None else ("attained" if r.attained else "below") for r in rows
-        ],
+        "states": ["none" if r.attained is None else ("attained" if r.attained else "below") for r in rows],
         "threshold": float(threshold),
     }
 
@@ -167,17 +165,13 @@ def po_contributions(student: User, po_id: int) -> dict:
     triples = profile.po_contributors.get(po.id, [])
     los = {
         lo.id: lo
-        for lo in LearningOutcome.objects.filter(
-            id__in={lo_id for _o, lo_id, _w in triples}
-        ).select_related("offering__course", "offering__term")
+        for lo in LearningOutcome.objects.filter(id__in={lo_id for _o, lo_id, _w in triples}).select_related(
+            "offering__course", "offering__term"
+        )
     }
 
     present_weight = sum(
-        (
-            Decimal(w)
-            for off, lo_id, w in triples
-            if profile.lo_scores.get((off, lo_id), NO_EVIDENCE).score is not None
-        ),
+        (Decimal(w) for off, lo_id, w in triples if profile.lo_scores.get((off, lo_id), NO_EVIDENCE).score is not None),
         ZERO,
     )
     rows = []
@@ -189,9 +183,7 @@ def po_contributions(student: User, po_id: int) -> dict:
                 lo=los[lo_id],
                 weight=int(weight),
                 lo_score=lo_score,
-                share=None
-                if lo_score is None or present_weight == ZERO
-                else Decimal(weight) / present_weight,
+                share=None if lo_score is None or present_weight == ZERO else Decimal(weight) / present_weight,
             )
         )
     rows.sort(key=lambda r: (r.lo_score is None, -r.weight, r.offering.course.code, r.lo.number))
@@ -230,18 +222,11 @@ def student_course_context(enrollment: Enrollment) -> dict:
         elif g is None or g.published_score is None:
             rows.append(AssessmentRow(a, "missing", None, None))
         else:
-            rows.append(
-                AssessmentRow(
-                    a, "scored", g.published_score, normalise(g.published_score, a.max_score)
-                )
-            )
+            rows.append(AssessmentRow(a, "scored", g.published_score, normalise(g.published_score, a.max_score)))
 
     inputs = load_offering_inputs(offering).get(enrollment.id)
     lo_scores = compute_student_profile([inputs]).lo_scores if inputs else {}
-    lo_rows = [
-        (lo, lo_scores.get((offering.id, lo.id), NO_EVIDENCE))
-        for lo in offering.learning_outcomes.all()
-    ]
+    lo_rows = [(lo, lo_scores.get((offering.id, lo.id), NO_EVIDENCE)) for lo in offering.learning_outcomes.all()]
 
     superseded = Enrollment.objects.filter(
         student=enrollment.student,
@@ -275,9 +260,7 @@ def course_results_context(offering: CourseOffering) -> dict:
 def department_context(program: Program, *, terms, include_open_terms: bool, cohort=None) -> dict:
     terms = list(terms)
     selected = max(terms, key=lambda t: t.starts_on) if terms else None
-    summaries = program_po_summary(
-        program, terms=terms, include_open_terms=include_open_terms, cohort=cohort
-    )
+    summaries = program_po_summary(program, terms=terms, include_open_terms=include_open_terms, cohort=cohort)
 
     offerings = []
     if selected is not None:

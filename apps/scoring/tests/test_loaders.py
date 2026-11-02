@@ -169,9 +169,7 @@ def test_planned_terms_never_count(elif_data):
 def test_up_to_term_cuts_later_terms(elif_data):
     """Used by the trend chart (T1.5): the profile as it was at the end of Spring 2026."""
     spring = TermFactory(**SPRING_2026)
-    maths = add_simple_offering(
-        elif_data.program, elif_data.po2, elif_data.student, term=spring, mark=70
-    )
+    maths = add_simple_offering(elif_data.program, elif_data.po2, elif_data.student, term=spring, mark=70)
     inputs = load_student_inputs(elif_data.student, up_to_term=spring)
     assert [i.offering_id for i in inputs] == [maths.id]
 
@@ -221,9 +219,7 @@ def test_student_loader_query_count(elif_data, django_assert_max_num_queries):
     """Four offerings must not mean four times the queries: the loader batches."""
     spring = TermFactory(**SPRING_2026)
     for code in ["MAT 141", "PHY 101", "CSE 102"]:
-        add_simple_offering(
-            elif_data.program, elif_data.po1, elif_data.student, term=spring, mark=60, code=code
-        )
+        add_simple_offering(elif_data.program, elif_data.po1, elif_data.student, term=spring, mark=60, code=code)
     with django_assert_max_num_queries(7):
         inputs = load_student_inputs(elif_data.student)
     assert len(inputs) == 4

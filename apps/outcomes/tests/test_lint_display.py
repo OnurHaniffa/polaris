@@ -9,9 +9,7 @@ from apps.outcomes.selectors import lint_counts, snapshot_mapping, snapshot_mapp
 
 
 def test_snapshot_reads_the_saved_mapping(course):
-    AssessmentLOWeight.objects.create(
-        assessment=course.midterm, learning_outcome=course.lo1, weight=Decimal("60")
-    )
+    AssessmentLOWeight.objects.create(assessment=course.midterm, learning_outcome=course.lo1, weight=Decimal("60"))
     LOPOWeight.objects.create(
         learning_outcome=course.lo1,
         program_outcome=course.po2,
@@ -43,9 +41,7 @@ def test_counts_mark_empty_courses(course):
 
 def test_mapping_tab_shows_the_checks(teacher_client, course):
     """B11 AC2 (Mapping tab) and B5 AC4 (checks reflect the saved mapping)."""
-    html = teacher_client.get(
-        reverse("outcomes:mapping", kwargs={"offering_id": course.offering.pk})
-    ).content.decode()
+    html = teacher_client.get(reverse("outcomes:mapping", kwargs={"offering_id": course.offering.pk})).content.decode()
     assert "Mapping checks" in html
     assert "L001" in html and "L002" in html and "L003" in html
     assert "measured by any assessment" in html

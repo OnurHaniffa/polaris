@@ -86,9 +86,7 @@ def grade_sheet(offering) -> GradeSheet:
     assessments = list(Assessment.objects.filter(offering=offering))  # query 2 (Meta ordering)
     grades = {
         (g.assessment_id, g.enrollment_id): g
-        for g in Grade.objects.filter(
-            assessment__offering=offering, enrollment__status=Enrollment.Status.ENROLLED
-        )
+        for g in Grade.objects.filter(assessment__offering=offering, enrollment__status=Enrollment.Status.ENROLLED)
     }  # query 3
 
     columns = []
@@ -98,9 +96,7 @@ def grade_sheet(offering) -> GradeSheet:
             SheetColumn(
                 assessment=a,
                 unpublished=sum(1 for g in col if g is not None and g.has_unpublished_change),
-                graded=sum(
-                    1 for g in col if g is not None and (g.score is not None or g.is_excused)
-                ),
+                graded=sum(1 for g in col if g is not None and (g.score is not None or g.is_excused)),
             )
         )
     rows = tuple(
@@ -117,11 +113,7 @@ def unpublished_changes(assessment) -> int:
     """How many enrolled students' grades on this assessment differ from the published value.
     One query. Used to refresh the column badge after a single cell save."""
     qs = Grade.objects.filter(assessment=assessment, enrollment__status=Enrollment.Status.ENROLLED)
-    return sum(
-        1
-        for g in qs.only("score", "is_excused", "published_score", "published_is_excused")
-        if g.has_unpublished_change
-    )
+    return sum(1 for g in qs.only("score", "is_excused", "published_score", "published_is_excused") if g.has_unpublished_change)
 
 
 def column_for(assessment) -> SheetColumn:

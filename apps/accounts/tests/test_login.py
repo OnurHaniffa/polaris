@@ -44,9 +44,7 @@ def test_inactive_account_gets_the_same_message(client):
     user = _user("gone@acibadem.edu.tr", "correct horse")
     user.is_active = False
     user.save()
-    response = client.post(
-        reverse("accounts:login"), {"username": user.email, "password": "correct horse"}
-    )
+    response = client.post(reverse("accounts:login"), {"username": user.email, "password": "correct horse"})
     assert GENERIC_LOGIN_ERROR in response.text
 
 

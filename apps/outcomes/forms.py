@@ -13,8 +13,7 @@ class LearningOutcomeForm(BootstrapFormMixin, forms.Form):
     description = forms.CharField(
         max_length=2000,
         widget=forms.Textarea(attrs={"rows": 3}),
-        help_text="What a student should be able to do after the course. "
-        "Copy the wording from your syllabus if you have one.",
+        help_text="What a student should be able to do after the course. Copy the wording from your syllabus if you have one.",
     )
 
     def clean_description(self):

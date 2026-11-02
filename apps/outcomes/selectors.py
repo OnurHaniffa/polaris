@@ -81,52 +81,30 @@ def _names(values, limit=6) -> str:
 
 
 def lo_deletion_impact(lo: LearningOutcome) -> DeletionImpact:
-    a_names = list(
-        lo.assessment_weights.order_by("assessment__position").values_list(
-            "assessment__name", flat=True
-        )
-    )
-    po_numbers = list(
-        lo.po_weights.order_by("program_outcome__number").values_list(
-            "program_outcome__number", flat=True
-        )
-    )
+    a_names = list(lo.assessment_weights.order_by("assessment__position").values_list("assessment__name", flat=True))
+    po_numbers = list(lo.po_weights.order_by("program_outcome__number").values_list("program_outcome__number", flat=True))
     lines = []
     if a_names:
-        lines.append(
-            f"{len(a_names)} assessment → LO weight{'s' if len(a_names) != 1 else ''} "
-            f"({_names(a_names)})"
-        )
+        lines.append(f"{len(a_names)} assessment → LO weight{'s' if len(a_names) != 1 else ''} ({_names(a_names)})")
     if po_numbers:
         lines.append(
-            f"{len(po_numbers)} LO → PO weight{'s' if len(po_numbers) != 1 else ''} "
-            f"({_names(f'PO {n}' for n in po_numbers)})"
+            f"{len(po_numbers)} LO → PO weight{'s' if len(po_numbers) != 1 else ''} ({_names(f'PO {n}' for n in po_numbers)})"
         )
     later = lo.offering.learning_outcomes.filter(number__gt=lo.number).count()
     if later:
-        lines.append(
-            f"LO {lo.number + 1}{'–' + str(lo.number + later) if later > 1 else ''} "
-            f"will be renumbered to close the gap"
-        )
+        lines.append(f"LO {lo.number + 1}{'–' + str(lo.number + later) if later > 1 else ''} will be renumbered to close the gap")
     return DeletionImpact(title=f"Delete LO {lo.number}?", lines=tuple(lines))
 
 
 def assessment_deletion_impact(assessment: Assessment) -> DeletionImpact:
-    if (
-        assessment.published_at is not None
-        or assessment.grades.filter(published_score__isnull=False).exists()
-    ):
+    if assessment.published_at is not None or assessment.grades.filter(published_score__isnull=False).exists():
         return DeletionImpact(
             title=f"{assessment.name} can't be deleted",
             lines=(),
-            blocked_reason=(
-                f"{assessment.name} has published grades. Unpublish it on the Grades tab first."
-            ),
+            blocked_reason=(f"{assessment.name} has published grades. Unpublish it on the Grades tab first."),
         )
     lo_numbers = list(
-        assessment.lo_weights.order_by("learning_outcome__number").values_list(
-            "learning_outcome__number", flat=True
-        )
+        assessment.lo_weights.order_by("learning_outcome__number").values_list("learning_outcome__number", flat=True)
     )
     drafts = assessment.grades.filter(score__isnull=False).count()
     lines = []
@@ -205,10 +183,7 @@ def mapping_grid(offering, *, validate_url: str = "") -> MappingGrid:
     lo_po_grid = WeightGrid(
         kind=LO_PO,
         caption="LO → PO weights (1–5). Blank = no contribution.",
-        cols=[
-            GridCol(f"PO {po.number}", f"PO {po.number} · {po.short_name}: {po.description}")
-            for po in pos
-        ],
+        cols=[GridCol(f"PO {po.number}", f"PO {po.number} · {po.short_name}: {po.description}") for po in pos],
         rows=[
             GridRow(
                 label=f"LO {lo.number}",
@@ -248,9 +223,7 @@ def snapshot_mappings(offering_ids) -> dict[int, MappingSnapshot]:
         .order_by("offering_id", "position", "id")
         .values("id", "offering_id", "name", "course_weight")
     ):
-        parts[row["offering_id"]]["assessments"].append(
-            AssessmentInfo(row["id"], row["name"], row["course_weight"])
-        )
+        parts[row["offering_id"]]["assessments"].append(AssessmentInfo(row["id"], row["name"], row["course_weight"]))
 
     for row in (
         LearningOutcome.objects.filter(offering_id__in=ids)
@@ -259,9 +232,9 @@ def snapshot_mappings(offering_ids) -> dict[int, MappingSnapshot]:
     ):
         parts[row["offering_id"]]["los"].append(LOInfo(row["id"], row["number"]))
 
-    for offering_id, a_id, lo_id in AssessmentLOWeight.objects.filter(
-        assessment__offering_id__in=ids
-    ).values_list("assessment__offering_id", "assessment_id", "learning_outcome_id"):
+    for offering_id, a_id, lo_id in AssessmentLOWeight.objects.filter(assessment__offering_id__in=ids).values_list(
+        "assessment__offering_id", "assessment_id", "learning_outcome_id"
+    ):
         parts[offering_id]["a_lo"].add((a_id, lo_id))
 
     for offering_id, lo_id, lo_number, po_id, po_number, weight, source in (
@@ -277,9 +250,7 @@ def snapshot_mappings(offering_ids) -> dict[int, MappingSnapshot]:
             "source",
         )
     ):
-        parts[offering_id]["lo_po"].append(
-            LOPOLink(lo_id, lo_number, po_id, po_number, weight, source)
-        )
+        parts[offering_id]["lo_po"].append(LOPOLink(lo_id, lo_number, po_id, po_number, weight, source))
 
     return {
         i: MappingSnapshot(

@@ -47,9 +47,7 @@ class ProgramMembership(models.Model):
         HEAD = "head", "Department Head"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="memberships")
-    program = models.ForeignKey(
-        "catalog.Program", on_delete=models.CASCADE, related_name="memberships"
-    )
+    program = models.ForeignKey("catalog.Program", on_delete=models.CASCADE, related_name="memberships")
     role = models.CharField(max_length=16, choices=Role.choices)
     cohort_year = models.PositiveSmallIntegerField(null=True, blank=True)
 

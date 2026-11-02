@@ -67,9 +67,7 @@ def test_head_is_specific_to_a_program(world):
 
 
 def test_instructor_is_only_authorised_on_assigned_offerings(world):
-    unassigned = CourseOffering.objects.create(
-        course=world.open_offering.course, term=world.open_offering.term, section="2"
-    )
+    unassigned = CourseOffering.objects.create(course=world.open_offering.course, term=world.open_offering.term, section="2")
     instructor, head = world.users["instructor"], world.users["head"]
 
     assert can_view_offering(instructor, world.open_offering)
@@ -152,10 +150,7 @@ def test_visible_enrollments_is_scoped_to_the_user(world):
 def test_visible_enrollments_hides_dropped_students_by_default(world):
     Enrollment.objects.filter(offering=world.open_offering).update(status=Enrollment.Status.DROPPED)
     assert visible_enrollments(world.users["head"], world.open_offering).count() == 0
-    assert (
-        visible_enrollments(world.users["head"], world.open_offering, include_dropped=True).count()
-        == 1
-    )
+    assert visible_enrollments(world.users["head"], world.open_offering, include_dropped=True).count() == 1
 
 
 # ------------------------------------------------------------------------ decorators

@@ -174,9 +174,7 @@ class AssessmentLOWeightFactory(factory.django.DjangoModelFactory):
         model = AssessmentLOWeight
 
     assessment = factory.SubFactory(AssessmentFactory)
-    learning_outcome = factory.SubFactory(
-        LearningOutcomeFactory, offering=factory.SelfAttribute("..assessment.offering")
-    )
+    learning_outcome = factory.SubFactory(LearningOutcomeFactory, offering=factory.SelfAttribute("..assessment.offering"))
     weight = Decimal("100")
 
 
@@ -198,9 +196,7 @@ class GradeFactory(factory.django.DjangoModelFactory):
         skip_postgeneration_save = True
 
     assessment = factory.SubFactory(AssessmentFactory)
-    enrollment = factory.SubFactory(
-        EnrollmentFactory, offering=factory.SelfAttribute("..assessment.offering")
-    )
+    enrollment = factory.SubFactory(EnrollmentFactory, offering=factory.SelfAttribute("..assessment.offering"))
     score = Decimal("75")
     is_excused = False
 

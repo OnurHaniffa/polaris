@@ -434,12 +434,8 @@ OFFERINGS: tuple[OfferingSpec, ...] = (
     OfferingSpec("MAT 241", "2026S", "ayse", ("2025",)),
     OfferingSpec("CSE 231", "2026S", "head", ("2024",)),
     OfferingSpec("CSE 341", "2026S", "ayse", ("2023",)),
-    OfferingSpec(
-        "CSE 311", "2026F", "head", ("2024",), published=("Midterm I", "Project"), elif_here=True
-    ),
-    OfferingSpec(
-        "CSE 321", "2026F", "can", ("2024",), published=("Midterm",), unpublished_change=True
-    ),
+    OfferingSpec("CSE 311", "2026F", "head", ("2024",), published=("Midterm I", "Project"), elif_here=True),
+    OfferingSpec("CSE 321", "2026F", "can", ("2024",), published=("Midterm",), unpublished_change=True),
     OfferingSpec("CSE 211", "2026F", "can", ("2025",), published=("Midterm",)),
     OfferingSpec("CSE 221", "2026F", "mehmet", ("2025",), published="none", mapped=False),
     OfferingSpec("CSE 101", "2026F", "can", ("retake",), published=("Quiz", "Midterm")),

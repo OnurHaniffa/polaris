@@ -37,9 +37,7 @@ def test_deleting_an_lo_closes_the_gap(course):
 
 
 def test_deleting_an_lo_removes_its_weights_and_records_them(course):
-    AssessmentLOWeight.objects.create(
-        assessment=course.midterm, learning_outcome=course.lo1, weight=Decimal("60")
-    )
+    AssessmentLOWeight.objects.create(assessment=course.midterm, learning_outcome=course.lo1, weight=Decimal("60"))
     LOPOWeight.objects.create(learning_outcome=course.lo1, program_outcome=course.po1, weight=4)
     lo1_id = course.lo1.pk
     services.delete_lo(course.teacher, course.lo1)
@@ -126,13 +124,9 @@ def test_max_change_with_grades_needs_confirmation(course):
         services.update_assessment(course.teacher, course.midterm, max_score=Decimal("80"))
     assert exc.value.code == "confirm_max_change"
     with pytest.raises(ValidationError) as exc:
-        services.update_assessment(
-            course.teacher, course.midterm, confirm_max_change=True, max_score=Decimal("50")
-        )
+        services.update_assessment(course.teacher, course.midterm, confirm_max_change=True, max_score=Decimal("50"))
     assert "max_score" in exc.value.message_dict  # 70 > 50
-    services.update_assessment(
-        course.teacher, course.midterm, confirm_max_change=True, max_score=Decimal("80")
-    )
+    services.update_assessment(course.teacher, course.midterm, confirm_max_change=True, max_score=Decimal("80"))
     course.midterm.refresh_from_db()
     assert course.midterm.max_score == Decimal("80")
 
@@ -160,9 +154,7 @@ def test_assessment_with_published_grades_cannot_be_deleted(course):
 
 
 def test_deleting_an_assessment_removes_its_weights_and_drafts(course):
-    AssessmentLOWeight.objects.create(
-        assessment=course.midterm, learning_outcome=course.lo1, weight=Decimal("60")
-    )
+    AssessmentLOWeight.objects.create(assessment=course.midterm, learning_outcome=course.lo1, weight=Decimal("60"))
     GradeFactory(
         assessment=course.midterm,
         enrollment=EnrollmentFactory(offering=course.offering),

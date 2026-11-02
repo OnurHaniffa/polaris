@@ -97,9 +97,7 @@ class DemoBuilder:
             raise RuntimeError("Expected the 11 official POs from the S1-05 data migration.")
 
         self.terms = {
-            code: Term.objects.create(
-                code=code, name=name, starts_on=start, ends_on=end, status=status
-            )
+            code: Term.objects.create(code=code, name=name, starts_on=start, ends_on=end, status=status)
             for code, name, start, end, status in data.TERMS
         }
         self._staff()
@@ -133,9 +131,7 @@ class DemoBuilder:
         self.staff: dict[str, User] = {}
         for key, (first, last, local, roles) in data.PEOPLE.items():
             pw = head_password if key == "head" else password
-            user = User.objects.create_user(
-                email=f"{local}@{DOMAIN}", password=pw, first_name=first, last_name=last
-            )
+            user = User.objects.create_user(email=f"{local}@{DOMAIN}", password=pw, first_name=first, last_name=last)
             for role in roles:
                 ProgramMembership.objects.create(user=user, program=self.program, role=role)
             self.staff[key] = user
@@ -182,14 +178,10 @@ class DemoBuilder:
             self.cohort_students.setdefault(str(cohort), []).append(user)
             mu = self.rng.gauss(70, 9)
             self.base[user.pk] = mu
-            self.abilities[user.pk] = {
-                n: min(99.0, max(30.0, self.rng.gauss(mu, 7))) for n in range(1, 12)
-            }
+            self.abilities[user.pk] = {n: min(99.0, max(30.0, self.rng.gauss(mu, 7))) for n in range(1, 12)}
         ProgramMembership.objects.bulk_create(memberships)
 
-        weakest = sorted(self.cohort_students["2025"], key=lambda u: self.base[u.pk])[
-            : data.RETAKERS
-        ]
+        weakest = sorted(self.cohort_students["2025"], key=lambda u: self.base[u.pk])[: data.RETAKERS]
         self.cohort_students["retake"] = sorted(weakest, key=lambda u: u.student_number)
 
         self.elif_user = User.objects.create_user(
@@ -205,11 +197,7 @@ class DemoBuilder:
             role=ProgramMembership.Role.STUDENT,
             cohort_year=data.ELIF["cohort_year"],
         )
-        self.summary.personas.append(
-            Persona(
-                "Student (slide example)", "Elif Yıldız", self.elif_user.email, student_password
-            )
-        )
+        self.summary.personas.append(Persona("Student (slide example)", "Elif Yıldız", self.elif_user.email, student_password))
         self.summary.personas.append(
             Persona(
                 "Any other student",
@@ -237,9 +225,7 @@ class DemoBuilder:
 
         assessments = []
         for position, a in enumerate(course_spec.assessments):
-            is_published = spec.published == "all" or (
-                isinstance(spec.published, tuple) and a.name in spec.published
-            )
+            is_published = spec.published == "all" or (isinstance(spec.published, tuple) and a.name in spec.published)
             assessments.append(
                 (
                     a,
@@ -259,9 +245,7 @@ class DemoBuilder:
         if spec.mapped:
             AssessmentLOWeight.objects.bulk_create(
                 [
-                    AssessmentLOWeight(
-                        assessment=obj, learning_outcome=los[lo_no - 1], weight=Decimal(w)
-                    )
+                    AssessmentLOWeight(assessment=obj, learning_outcome=los[lo_no - 1], weight=Decimal(w))
                     for a, obj in assessments
                     for lo_no, w in a.lo.items()
                 ]
@@ -283,9 +267,7 @@ class DemoBuilder:
             (u for cohort in spec.cohorts for u in self.cohort_students[cohort]),
             key=lambda u: u.student_number,
         )
-        enrollments = Enrollment.objects.bulk_create(
-            [Enrollment(offering=offering, student=u) for u in students]
-        )
+        enrollments = Enrollment.objects.bulk_create([Enrollment(offering=offering, student=u) for u in students])
 
         grades = []
         for enrollment, student in zip(enrollments, students, strict=True):
@@ -325,9 +307,7 @@ class DemoBuilder:
                 grade.score -= Decimal(5)
             grade.save(update_fields=["score"])
 
-    def _grade(
-        self, student, a: data.AssessmentSpec, course: data.CourseSpec, obj, enrollment, teacher
-    ):
+    def _grade(self, student, a: data.AssessmentSpec, course: data.CourseSpec, obj, enrollment, teacher):
         draw = self.rng.random()
         noise = self.rng.gauss(0, 8)
         if draw < MISSING_RATE:

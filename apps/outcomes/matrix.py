@@ -152,9 +152,7 @@ class GridCell:
     value: str  # what the input shows ("" = no link)
     label: str  # accessible name, e.g. "Midterm I to LO 2"
     error: str = ""
-    origin: str = (
-        ""  # "", "document", "derived", "ai_suggested" (colour + text mark); "manual" = plain
-    )
+    origin: str = ""  # "", "document", "derived", "ai_suggested" (colour + text mark); "manual" = plain
     rationale: str = ""  # one sentence, shown on hover for AI-suggested cells
 
 
@@ -206,9 +204,7 @@ def column_totals(grid: WeightGrid) -> list[str]:
     return [fmt_weight(t) for t in totals]
 
 
-def overlay_submitted(
-    grid: WeightGrid, cells: list[Cell], errors: dict[str, str] | None = None
-) -> WeightGrid:
+def overlay_submitted(grid: WeightGrid, cells: list[Cell], errors: dict[str, str] | None = None) -> WeightGrid:
     """Show what the user typed (and the errors) instead of the saved values, so a refused
     save never throws their work away. Mutates and returns `grid`. Errors for cells that
     aren't on the page, and the "__all__" key, go to grid.form_errors."""

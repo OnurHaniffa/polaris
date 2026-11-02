@@ -102,8 +102,7 @@ def small_department():
         status="closed",
     )
     students = [
-        UserFactory(first_name=name, student_number=f"2024-00{i}")
-        for i, name in enumerate(["Ali", "Ayşe", "Mert"], start=1)
+        UserFactory(first_name=name, student_number=f"2024-00{i}") for i, name in enumerate(["Ali", "Ayşe", "Mert"], start=1)
     ]
     for s in students:
         MembershipFactory(user=s, program=program, cohort_year=2024)
@@ -124,12 +123,8 @@ def small_department():
         for assessment, mark in zip(assessments, marks[s.first_name], strict=True):
             enrollment = EnrollmentFactory(offering=assessment.offering, student=s)
             if mark is not None:
-                GradeFactory(
-                    assessment=assessment, enrollment=enrollment, score=D(mark), published=True
-                )
-    return SimpleNamespace(
-        program=program, term=term, offerings=offerings, students=students, po1=po1, po2=po2
-    )
+                GradeFactory(assessment=assessment, enrollment=enrollment, score=D(mark), published=True)
+    return SimpleNamespace(program=program, term=term, offerings=offerings, students=students, po1=po1, po2=po2)
 
 
 def one_lo_class(*, students_scores=(), term=None, program=None, po=None, lo_po_weight=3):
@@ -149,9 +144,7 @@ def one_lo_class(*, students_scores=(), term=None, program=None, po=None, lo_po_
     )
     offering = OfferingFactory(course=CourseFactory(program=program), term=term)
     published_at = timezone.now()
-    assessment = AssessmentFactory(
-        offering=offering, name="Exam", max_score=Decimal("100"), published_at=published_at
-    )
+    assessment = AssessmentFactory(offering=offering, name="Exam", max_score=Decimal("100"), published_at=published_at)
     lo = LearningOutcomeFactory(offering=offering, number=1)
     AssessmentLOWeightFactory(assessment=assessment, learning_outcome=lo, weight=Decimal("100"))
     LOPOWeightFactory(learning_outcome=lo, program_outcome=po, weight=lo_po_weight)

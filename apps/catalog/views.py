@@ -77,8 +77,7 @@ def offering_home(request, offering, perms_for):
             "tabs": offering_tabs(offering, "catalog:offering"),
             "student_count": visible_enrollments(request.user, offering).count(),
             "status": setup_status(offering),
-            "can_manage_enrollment": request.user.is_superuser
-            or is_head(request.user, offering.course.program),
+            "can_manage_enrollment": request.user.is_superuser or is_head(request.user, offering.course.program),
         },
     )
 
@@ -127,9 +126,7 @@ def term_edit(request, term_id):
         else:
             messages.success(request, "Term saved.")
             return redirect("catalog:terms")
-    return render(
-        request, "catalog/term_edit.html", {"term": term, "form": form, "section": "terms"}
-    )
+    return render(request, "catalog/term_edit.html", {"term": term, "form": form, "section": "terms"})
 
 
 @login_required
@@ -190,17 +187,13 @@ def course_edit(request, course_id):
     form = CourseForm(request.POST or None, instance=course, program=program)
     if request.method == "POST" and form.is_valid():
         try:
-            services.save_course(
-                request.user, Course.objects.get(pk=course.pk), **form.cleaned_data
-            )
+            services.save_course(request.user, Course.objects.get(pk=course.pk), **form.cleaned_data)
         except ValidationError as exc:
             add_service_errors(form, exc)
         else:
             messages.success(request, "Course saved.")
             return redirect("catalog:courses")
-    return render(
-        request, "catalog/course_edit.html", {"course": course, "form": form, "section": "courses"}
-    )
+    return render(request, "catalog/course_edit.html", {"course": course, "form": form, "section": "courses"})
 
 
 # ---------- offerings ----------
@@ -221,9 +214,7 @@ def offerings(request):
             return redirect("catalog:enrollments", offering_id=offering.pk)
 
     term_id = request.GET.get("term")
-    selected_term = (
-        Term.objects.filter(pk=term_id).first() if term_id and term_id.isdigit() else None
-    )
+    selected_term = Term.objects.filter(pk=term_id).first() if term_id and term_id.isdigit() else None
     qs = (
         CourseOffering.objects.filter(course__program=program)
         .select_related("course", "term")
@@ -301,17 +292,13 @@ def enrollments(request, offering_id):
             return redirect("catalog:enrollments", offering_id=offering.pk)
 
     if action == "drop":
-        enrollment = get_object_or_404(
-            Enrollment, pk=request.POST.get("enrollment_id"), offering=offering
-        )
+        enrollment = get_object_or_404(Enrollment, pk=request.POST.get("enrollment_id"), offering=offering)
         try:
             services.drop(request.user, enrollment)
         except ValidationError as exc:
             messages.error(request, " ".join(exc.messages))
         else:
-            messages.success(
-                request, f"{enrollment.student.get_full_name()} dropped. Their grades are kept."
-            )
+            messages.success(request, f"{enrollment.student.get_full_name()} dropped. Their grades are kept.")
         return redirect("catalog:enrollments", offering_id=offering.pk)
 
     return render(
@@ -334,12 +321,8 @@ def enrollments(request, offering_id):
 @require_role("head")
 def po_sets(request):
     program = _program(request)
-    sets = program.po_sets.annotate(n=Count("outcomes")).order_by(
-        "-is_active", "-effective_from_year"
-    )
-    return render(
-        request, "catalog/po_sets.html", {"program": program, "sets": sets, "section": "outcomes"}
-    )
+    sets = program.po_sets.annotate(n=Count("outcomes")).order_by("-is_active", "-effective_from_year")
+    return render(request, "catalog/po_sets.html", {"program": program, "sets": sets, "section": "outcomes"})
 
 
 @login_required
@@ -372,9 +355,7 @@ def po_set_copy(request, set_id):
         except ValidationError as exc:
             add_service_errors(form, exc)
         else:
-            messages.success(
-                request, f"Copied to “{new_set.label}”. It stays inactive until you activate it."
-            )
+            messages.success(request, f"Copied to “{new_set.label}”. It stays inactive until you activate it.")
             return redirect("catalog:po_set", set_id=new_set.pk)
     return render(
         request,
@@ -408,15 +389,11 @@ def po_set_activate(request, set_id):
 @require_role("head")
 def po_edit(request, po_id):
     program = _program(request)
-    po = get_object_or_404(
-        ProgramOutcome.objects.select_related("po_set"), pk=po_id, po_set__program=program
-    )
+    po = get_object_or_404(ProgramOutcome.objects.select_related("po_set"), pk=po_id, po_set__program=program)
     form = POForm(request.POST or None, instance=po)
     if request.method == "POST" and form.is_valid():
         try:
-            services.update_po(
-                request.user, ProgramOutcome.objects.get(pk=po.pk), **form.cleaned_data
-            )
+            services.update_po(request.user, ProgramOutcome.objects.get(pk=po.pk), **form.cleaned_data)
         except ValidationError as exc:
             add_service_errors(form, exc)
         else:
@@ -430,9 +407,7 @@ def po_edit(request, po_id):
 def po_delete(request, po_id):
     """GET: confirmation (full page, or just the modal body for HTMX). POST: delete."""
     program = _program(request)
-    po = get_object_or_404(
-        ProgramOutcome.objects.select_related("po_set"), pk=po_id, po_set__program=program
-    )
+    po = get_object_or_404(ProgramOutcome.objects.select_related("po_set"), pk=po_id, po_set__program=program)
     if request.method == "POST":
         try:
             services.delete_po(request.user, po)
@@ -464,9 +439,7 @@ def enrollment_import(request):
     program = _program(request)
     form = EnrollmentImportForm(request.POST or None, request.FILES or None, program=program)
     if request.method == "POST" and form.is_valid():
-        job = create_enrollment_import_job(
-            request.user, form.cleaned_data["offering"], form.cleaned_data["file"]
-        )
+        job = create_enrollment_import_job(request.user, form.cleaned_data["offering"], form.cleaned_data["file"])
         return redirect("catalog:enrollment_import_preview", job_id=job.pk)
     return render(request, "catalog/enrollment_import.html", {"form": form})
 
@@ -497,8 +470,7 @@ def enrollment_import_confirm(request, job_id):
     except PreviewOutdated:
         messages.warning(
             request,
-            "Something changed since you opened this preview. "
-            "Here is the updated one. Check it and confirm again.",
+            "Something changed since you opened this preview. Here is the updated one. Check it and confirm again.",
         )
         return redirect("catalog:enrollment_import_preview", job_id=job.pk)
     except ValidationError as exc:

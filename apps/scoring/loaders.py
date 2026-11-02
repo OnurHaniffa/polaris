@@ -14,9 +14,9 @@ from .engine import Edge, OfferingInputs
 
 
 def _counted_enrollments(student, *, include_open_terms, up_to_term):
-    qs = Enrollment.objects.filter(
-        student=student, status=Enrollment.Status.ENROLLED
-    ).select_related("offering__course__program", "offering__term")
+    qs = Enrollment.objects.filter(student=student, status=Enrollment.Status.ENROLLED).select_related(
+        "offering__course__program", "offering__term"
+    )
     if include_open_terms:
         qs = qs.exclude(offering__term__status=Term.Status.PLANNED)
     else:
@@ -52,9 +52,9 @@ def _published_grades(enrollment_ids):
 
 def _offering_structure(offering_ids):
     max_scores = defaultdict(dict)
-    for offering_id, assessment_id, max_score in Assessment.objects.filter(
-        offering_id__in=offering_ids
-    ).values_list("offering_id", "id", "max_score"):
+    for offering_id, assessment_id, max_score in Assessment.objects.filter(offering_id__in=offering_ids).values_list(
+        "offering_id", "id", "max_score"
+    ):
         max_scores[offering_id][assessment_id] = max_score
 
     a_lo = defaultdict(list)
@@ -89,9 +89,7 @@ def _inputs(offering_id, grades, excused, max_scores, a_lo, lo_po, po_set_id):
 
 
 def load_student_inputs(student, *, include_open_terms=True, up_to_term=None):
-    enrollments = _counted_enrollments(
-        student, include_open_terms=include_open_terms, up_to_term=up_to_term
-    )
+    enrollments = _counted_enrollments(student, include_open_terms=include_open_terms, up_to_term=up_to_term)
     if not enrollments:
         return []
     offering_ids = [e.offering_id for e in enrollments]
@@ -119,9 +117,7 @@ def load_student_inputs(student, *, include_open_terms=True, up_to_term=None):
 
 
 def load_offering_inputs(offering):
-    enrollments = list(
-        Enrollment.objects.filter(offering=offering, status=Enrollment.Status.ENROLLED)
-    )
+    enrollments = list(Enrollment.objects.filter(offering=offering, status=Enrollment.Status.ENROLLED))
     if not enrollments:
         return {}
     grades, excused = _published_grades([e.id for e in enrollments])

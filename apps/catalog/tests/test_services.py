@@ -73,11 +73,7 @@ def test_term_lifecycle_and_audit(head):
     services.set_term_status(head, term, Term.Status.CLOSED)
     term.refresh_from_db()
     assert term.status == Term.Status.CLOSED
-    actions = list(
-        AuditEvent.objects.filter(entity_type="term")
-        .order_by("created_at", "id")
-        .values_list("action", flat=True)
-    )
+    actions = list(AuditEvent.objects.filter(entity_type="term").order_by("created_at", "id").values_list("action", flat=True))
     assert actions == ["term.create", "term.open", "term.close"]
 
 
@@ -99,9 +95,7 @@ def test_reopen_needs_a_reason_and_records_it(head, term):
     services.set_term_status(head, term, Term.Status.CLOSED)
     with pytest.raises(ValidationError):
         services.set_term_status(head, term, Term.Status.OPEN, reason="oops")
-    services.set_term_status(
-        head, term, Term.Status.OPEN, reason="Grade appeal approved by the board"
-    )
+    services.set_term_status(head, term, Term.Status.OPEN, reason="Grade appeal approved by the board")
     event = AuditEvent.objects.get(action="term.reopen")
     assert event.after == {"status": "open", "reason": "Grade appeal approved by the board"}
     assert event.actor == head
@@ -116,17 +110,13 @@ def test_update_term_cannot_change_status(head, term):
 
 
 def test_course_code_normalised_and_unique_per_program(head, cse):
-    course = services.save_course(
-        head, program=cse, code="cse  311", title="Software", credits=3, ects=6
-    )
+    course = services.save_course(head, program=cse, code="cse  311", title="Software", credits=3, ects=6)
     assert course.code == "CSE 311"
     with pytest.raises(ValidationError) as err:
         services.save_course(head, program=cse, code="CSE 311", title="Dup", credits=3, ects=6)
     assert "already exists" in str(err.value)
     other = ProgramFactory(code="BME")
-    assert services.save_course(
-        head, program=other, code="CSE 311", title="Elsewhere", credits=3, ects=6
-    )
+    assert services.save_course(head, program=other, code="CSE 311", title="Elsewhere", credits=3, ects=6)
 
 
 # ---------- offerings ----------
@@ -135,9 +125,7 @@ def test_course_code_normalised_and_unique_per_program(head, cse):
 def test_create_offering_with_instructors(head, cse, term):
     teacher = UserFactory()
     MembershipFactory(user=teacher, program=cse, role="instructor")
-    offering = services.create_offering(
-        head, course=CourseFactory(program=cse), term=term, section="1", instructors=[teacher]
-    )
+    offering = services.create_offering(head, course=CourseFactory(program=cse), term=term, section="1", instructors=[teacher])
     assert list(offering.instructors.all()) == [teacher]
     event = AuditEvent.objects.get(action="offering.create")
     assert event.offering == offering and event.after["instructors"] == [teacher.email]
@@ -146,17 +134,13 @@ def test_create_offering_with_instructors(head, cse, term):
 def test_non_instructor_cannot_be_assigned(head, cse, term):
     random_user = UserFactory()
     with pytest.raises(ValidationError) as err:
-        services.create_offering(
-            head, course=CourseFactory(program=cse), term=term, instructors=[random_user]
-        )
+        services.create_offering(head, course=CourseFactory(program=cse), term=term, instructors=[random_user])
     assert "instructors" in err.value.message_dict
 
 
 def test_duplicate_section_refused(head, offering):
     with pytest.raises(ValidationError):
-        services.create_offering(
-            head, course=offering.course, term=offering.term, section=offering.section
-        )
+        services.create_offering(head, course=offering.course, term=offering.term, section=offering.section)
 
 
 def test_no_offerings_in_closed_term(head, cse):
@@ -272,9 +256,7 @@ def test_get_or_create_student_needs_cohort_for_new_membership(head, cse):
 
 @pytest.fixture
 def active_set(cse):
-    po_set = ProgramOutcomeSetFactory(
-        program=cse, label="2023 curriculum", effective_from_year=2020, is_active=True
-    )
+    po_set = ProgramOutcomeSetFactory(program=cse, label="2023 curriculum", effective_from_year=2020, is_active=True)
     for n in range(1, 12):
         ProgramOutcomeFactory(po_set=po_set, number=n, short_name=f"PO {n} name")
     return po_set
@@ -293,15 +275,11 @@ def test_activate_switches_the_single_active_set(head, active_set, cse):
     services.activate_po_set(head, copy)
     assert list(ProgramOutcomeSet.objects.filter(program=cse, is_active=True)) == [copy]
     event = AuditEvent.objects.get(action="po_set.activate")
-    assert event.before == {"active": "2023 curriculum"} and event.after == {
-        "active": "2027 curriculum"
-    }
+    assert event.before == {"active": "2023 curriculum"} and event.after == {"active": "2027 curriculum"}
 
 
 def test_empty_set_cannot_be_activated(head, cse):
-    empty = ProgramOutcomeSetFactory(
-        program=cse, label="empty", effective_from_year=2030, is_active=False
-    )
+    empty = ProgramOutcomeSetFactory(program=cse, label="empty", effective_from_year=2030, is_active=False)
     with pytest.raises(ValidationError):
         services.activate_po_set(head, empty)
 

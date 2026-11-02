@@ -63,11 +63,7 @@ def require_offering_access(*, edit: bool = False, lookup=None):
             if offering_id is None:
                 raise Http404("Page not found")
 
-            offering = (
-                CourseOffering.objects.select_related("course__program", "term")
-                .filter(pk=offering_id)
-                .first()
-            )
+            offering = CourseOffering.objects.select_related("course__program", "term").filter(pk=offering_id).first()
             if offering is None:
                 raise Http404("Page not found")
 
