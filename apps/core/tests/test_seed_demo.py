@@ -40,18 +40,18 @@ def test_shape_of_the_department(seeded):
     assert Course.objects.count() == 12
     assert CourseOffering.objects.count() == 15
     students = User.objects.filter(memberships__role="student").distinct()
-    assert students.count() == 31                      # 3 cohorts × 10 + Elif
+    assert students.count() == 31  # 3 cohorts × 10 + Elif
     assert "Elif Yıldız" in seeded and "student-demo-311" in seeded
 
 
 def test_deliberate_flaws_are_present(seeded):
     active = active_po_set(Program.objects.get(code="CSE"))
     # PO 11 linked by no course
-    assert not LOPOWeight.objects.filter(program_outcome__po_set=active,
-                                         program_outcome__number=11).exists()
+    assert not LOPOWeight.objects.filter(program_outcome__po_set=active, program_outcome__number=11).exists()
     # PO 9 covered by exactly one course
-    po9_courses = set(LOPOWeight.objects.filter(program_outcome__number=9)
-                      .values_list("learning_outcome__offering__course__code", flat=True))
+    po9_courses = set(
+        LOPOWeight.objects.filter(program_outcome__number=9).values_list("learning_outcome__offering__course__code", flat=True)
+    )
     assert po9_courses == {"CSE 341"}
     # one Fall 2026 offering with LOs and assessments but no mapping
     unmapped = CourseOffering.objects.get(course__code="CSE 221", term__code="2026F")
@@ -60,8 +60,9 @@ def test_deliberate_flaws_are_present(seeded):
     assert not AssessmentLOWeight.objects.filter(assessment__offering=unmapped).exists()
     assert not LOPOWeight.objects.filter(learning_outcome__offering=unmapped).exists()
     # exactly one grade with an unpublished change
-    changed = (Grade.objects.filter(assessment__published_at__isnull=False, score__isnull=False)
-               .exclude(score=F("published_score")))
+    changed = Grade.objects.filter(assessment__published_at__isnull=False, score__isnull=False).exclude(
+        score=F("published_score")
+    )
     assert changed.count() == 1
 
 
@@ -79,15 +80,24 @@ def test_grades_are_valid(seeded):
     assert not Grade.objects.exclude(assessment__offering=F("enrollment__offering")).exists()
     total = Grade.objects.count()
     excused = Grade.objects.filter(is_excused=True).count()
-    assert 0 < excused < total * 0.06                   # about 2%
+    assert 0 < excused < total * 0.06  # about 2%
 
 
 def _fingerprint():
-    return list(Grade.objects.order_by(
-        "enrollment__student__student_number", "assessment__offering__term__code",
-        "assessment__offering__course__code", "assessment__position",
-    ).values_list("enrollment__student__student_number", "assessment__offering__course__code",
-                  "assessment__name", "score", "is_excused"))
+    return list(
+        Grade.objects.order_by(
+            "enrollment__student__student_number",
+            "assessment__offering__term__code",
+            "assessment__offering__course__code",
+            "assessment__position",
+        ).values_list(
+            "enrollment__student__student_number",
+            "assessment__offering__course__code",
+            "assessment__name",
+            "score",
+            "is_excused",
+        )
+    )
 
 
 def test_same_seed_same_data(seeded):
