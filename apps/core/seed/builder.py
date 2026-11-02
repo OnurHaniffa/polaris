@@ -1,4 +1,5 @@
 """Builds the demo department (spec Appendix B). Deterministic: same seed, same data."""
+
 from __future__ import annotations
 
 import random
@@ -61,10 +62,10 @@ class DemoBuilder:
     def __init__(self, *, students_per_cohort: int = 40, random_passwords: bool = False):
         self.n = students_per_cohort
         self.random_passwords = random_passwords
-        self.rng = random.Random(SEED)
+        self.rng = random.Random(SEED)  # noqa: S311
         self.summary = SeedSummary()
-        self.abilities: dict[int, dict[int, float]] = {}     # user id -> PO number -> ability
-        self.base: dict[int, float] = {}                     # user id -> μ
+        self.abilities: dict[int, dict[int, float]] = {}  # user id -> PO number -> ability
+        self.base: dict[int, float] = {}  # user id -> μ
         self.cohort_students: dict[str, list[User]] = {}
 
     # ---------- housekeeping ----------
@@ -78,8 +79,8 @@ class DemoBuilder:
         """Delete all teaching data and every demo account. Keeps programs, PO sets and
         superusers. Order matters because of PROTECT foreign keys."""
         AuditEvent.objects.all().delete()
-        IngestionJob.objects.all().delete()           # created_by is PROTECT
-        CourseOffering.objects.all().delete()         # cascades LOs, assessments, weights, enrollments, grades
+        IngestionJob.objects.all().delete()  # created_by is PROTECT
+        CourseOffering.objects.all().delete()
         Course.objects.all().delete()
         Term.objects.all().delete()
         User.objects.filter(email__endswith=DOMAIN, is_superuser=False).delete()
@@ -96,14 +97,21 @@ class DemoBuilder:
             raise RuntimeError("Expected the 11 official POs from the S1-05 data migration.")
 
         self.terms = {
-            code: Term.objects.create(code=code, name=name, starts_on=start, ends_on=end, status=status)
+            code: Term.objects.create(
+                code=code, name=name, starts_on=start, ends_on=end, status=status
+            )
             for code, name, start, end, status in data.TERMS
         }
         self._staff()
         self._students()
         self.courses = {
-            code: Course.objects.create(program=self.program, code=code, title=spec.title,
-                                        credits=Decimal(spec.credits), ects=Decimal(spec.ects))
+            code: Course.objects.create(
+                program=self.program,
+                code=code,
+                title=spec.title,
+                credits=Decimal(spec.credits),
+                ects=Decimal(spec.ects),
+            )
             for code, spec in data.COURSES.items()
         }
         for spec in data.OFFERINGS:
@@ -125,15 +133,20 @@ class DemoBuilder:
         self.staff: dict[str, User] = {}
         for key, (first, last, local, roles) in data.PEOPLE.items():
             pw = head_password if key == "head" else password
-            user = User.objects.create_user(email=f"{local}@{DOMAIN}", password=pw,
-                                            first_name=first, last_name=last)
+            user = User.objects.create_user(
+                email=f"{local}@{DOMAIN}", password=pw, first_name=first, last_name=last
+            )
             for role in roles:
                 ProgramMembership.objects.create(user=user, program=self.program, role=role)
             self.staff[key] = user
-            self.summary.personas.append(Persona(
-                role="Head + instructor" if key == "head" else "Instructor",
-                name=f"{first} {last}", email=user.email, password=pw,
-            ))
+            self.summary.personas.append(
+                Persona(
+                    role="Head + instructor" if key == "head" else "Instructor",
+                    name=f"{first} {last}",
+                    email=user.email,
+                    password=pw,
+                )
+            )
 
     def _students(self) -> None:
         student_password = self._password("student-demo-311")
@@ -144,38 +157,67 @@ class DemoBuilder:
                 first = self.rng.choice(data.FIRST_NAMES)
                 last = self.rng.choice(data.LAST_NAMES)
                 number = f"{cohort}-{i:04d}"
-                users.append(User(
-                    email=f"{slug(first)}.{slug(last)}.{cohort % 100}{i:03d}@students.{DOMAIN}",
-                    first_name=first, last_name=last, student_number=number, password=hashed,
-                ))
-        users = User.objects.bulk_create(users)          # PostgreSQL returns primary keys
+                users.append(
+                    User(
+                        email=f"{slug(first)}.{slug(last)}.{cohort % 100}{i:03d}@students.{DOMAIN}",
+                        first_name=first,
+                        last_name=last,
+                        student_number=number,
+                        password=hashed,
+                    )
+                )
+        users = User.objects.bulk_create(users)  # PostgreSQL returns primary keys
 
         memberships = []
         for user in users:
             cohort = int(user.student_number[:4])
-            memberships.append(ProgramMembership(user=user, program=self.program,
-                                                 role=ProgramMembership.Role.STUDENT, cohort_year=cohort))
+            memberships.append(
+                ProgramMembership(
+                    user=user,
+                    program=self.program,
+                    role=ProgramMembership.Role.STUDENT,
+                    cohort_year=cohort,
+                )
+            )
             self.cohort_students.setdefault(str(cohort), []).append(user)
             mu = self.rng.gauss(70, 9)
             self.base[user.pk] = mu
-            self.abilities[user.pk] = {n: min(99.0, max(30.0, self.rng.gauss(mu, 7))) for n in range(1, 12)}
+            self.abilities[user.pk] = {
+                n: min(99.0, max(30.0, self.rng.gauss(mu, 7))) for n in range(1, 12)
+            }
         ProgramMembership.objects.bulk_create(memberships)
 
-        weakest = sorted(self.cohort_students["2025"], key=lambda u: self.base[u.pk])[:data.RETAKERS]
+        weakest = sorted(self.cohort_students["2025"], key=lambda u: self.base[u.pk])[
+            : data.RETAKERS
+        ]
         self.cohort_students["retake"] = sorted(weakest, key=lambda u: u.student_number)
 
         self.elif_user = User.objects.create_user(
-            email=data.ELIF["email"], password=student_password,
-            first_name=data.ELIF["first_name"], last_name=data.ELIF["last_name"],
+            email=data.ELIF["email"],
+            password=student_password,
+            first_name=data.ELIF["first_name"],
+            last_name=data.ELIF["last_name"],
             student_number=data.ELIF["student_number"],
         )
-        ProgramMembership.objects.create(user=self.elif_user, program=self.program,
-                                         role=ProgramMembership.Role.STUDENT,
-                                         cohort_year=data.ELIF["cohort_year"])
-        self.summary.personas.append(Persona("Student (slide example)", "Elif Yıldız",
-                                             self.elif_user.email, student_password))
-        self.summary.personas.append(Persona("Any other student", f"{len(users)} students",
-                                             f"…@students.{DOMAIN} (see admin)", student_password))
+        ProgramMembership.objects.create(
+            user=self.elif_user,
+            program=self.program,
+            role=ProgramMembership.Role.STUDENT,
+            cohort_year=data.ELIF["cohort_year"],
+        )
+        self.summary.personas.append(
+            Persona(
+                "Student (slide example)", "Elif Yıldız", self.elif_user.email, student_password
+            )
+        )
+        self.summary.personas.append(
+            Persona(
+                "Any other student",
+                f"{len(users)} students",
+                f"…@students.{DOMAIN} (see admin)",
+                student_password,
+            )
+        )
 
     def _offering(self, spec: data.OfferingSpec) -> None:
         course_spec = data.COURSES[spec.course]
@@ -196,37 +238,60 @@ class DemoBuilder:
         assessments = []
         for position, a in enumerate(course_spec.assessments):
             is_published = spec.published == "all" or (
-                isinstance(spec.published, tuple) and a.name in spec.published)
-            assessments.append((a, Assessment.objects.create(
-                offering=offering, name=a.name, kind=a.kind, max_score=Decimal(a.max_score),
-                course_weight=Decimal(a.course_weight), position=position,
-                published_at=published_at if is_published else None,
-                published_by=teacher if is_published else None,
-            )))
+                isinstance(spec.published, tuple) and a.name in spec.published
+            )
+            assessments.append(
+                (
+                    a,
+                    Assessment.objects.create(
+                        offering=offering,
+                        name=a.name,
+                        kind=a.kind,
+                        max_score=Decimal(a.max_score),
+                        course_weight=Decimal(a.course_weight),
+                        position=position,
+                        published_at=published_at if is_published else None,
+                        published_by=teacher if is_published else None,
+                    ),
+                )
+            )
 
         if spec.mapped:
-            AssessmentLOWeight.objects.bulk_create([
-                AssessmentLOWeight(assessment=obj, learning_outcome=los[lo_no - 1], weight=Decimal(w))
-                for a, obj in assessments for lo_no, w in a.lo.items()
-            ])
-            LOPOWeight.objects.bulk_create([
-                LOPOWeight(learning_outcome=los[i], program_outcome=self.pos[po_no], weight=w,
-                           source=Source.MANUAL)
-                for i, lo in enumerate(course_spec.los) for po_no, w in lo.po.items()
-            ])
+            AssessmentLOWeight.objects.bulk_create(
+                [
+                    AssessmentLOWeight(
+                        assessment=obj, learning_outcome=los[lo_no - 1], weight=Decimal(w)
+                    )
+                    for a, obj in assessments
+                    for lo_no, w in a.lo.items()
+                ]
+            )
+            LOPOWeight.objects.bulk_create(
+                [
+                    LOPOWeight(
+                        learning_outcome=los[i],
+                        program_outcome=self.pos[po_no],
+                        weight=w,
+                        source=Source.MANUAL,
+                    )
+                    for i, lo in enumerate(course_spec.los)
+                    for po_no, w in lo.po.items()
+                ]
+            )
 
         students = sorted(
             (u for cohort in spec.cohorts for u in self.cohort_students[cohort]),
             key=lambda u: u.student_number,
         )
         enrollments = Enrollment.objects.bulk_create(
-            [Enrollment(offering=offering, student=u) for u in students])
+            [Enrollment(offering=offering, student=u) for u in students]
+        )
 
         grades = []
         for enrollment, student in zip(enrollments, students, strict=True):
             for a, obj in assessments:
                 if obj.published_at is None:
-                    continue                          # not held yet (open term) or not published
+                    continue  # not held yet (open term) or not published
                 grade = self._grade(student, a, course_spec, obj, enrollment, teacher)
                 if grade is not None:
                     grades.append(grade)
@@ -236,28 +301,46 @@ class DemoBuilder:
             for a, obj in assessments:
                 if a.name in data.ELIF["grades"]:
                     value = Decimal(data.ELIF["grades"][a.name])
-                    grades.append(Grade(assessment=obj, enrollment=elif_enrollment, score=value,
-                                        published_score=value, published_at=obj.published_at,
-                                        updated_by=teacher))
+                    grades.append(
+                        Grade(
+                            assessment=obj,
+                            enrollment=elif_enrollment,
+                            score=value,
+                            published_score=value,
+                            published_at=obj.published_at,
+                            updated_by=teacher,
+                        )
+                    )
         Grade.objects.bulk_create(grades)
 
         if spec.unpublished_change:
             first_published = next(obj for _a, obj in assessments if obj.published_at is not None)
-            grade = (Grade.objects.filter(assessment=first_published, score__isnull=False)
-                     .order_by("enrollment__student__student_number").first())
+            grade = (
+                Grade.objects.filter(assessment=first_published, score__isnull=False)
+                .order_by("enrollment__student__student_number")
+                .first()
+            )
             grade.score = min(first_published.max_score, grade.score + Decimal(5))
-            if grade.score == grade.published_score:          # was already at max: go down instead
+            if grade.score == grade.published_score:  # was already at max: go down instead
                 grade.score -= Decimal(5)
             grade.save(update_fields=["score"])
 
-    def _grade(self, student, a: data.AssessmentSpec, course: data.CourseSpec, obj, enrollment, teacher):
+    def _grade(
+        self, student, a: data.AssessmentSpec, course: data.CourseSpec, obj, enrollment, teacher
+    ):
         draw = self.rng.random()
         noise = self.rng.gauss(0, 8)
         if draw < MISSING_RATE:
             return None
         if draw < MISSING_RATE + EXCUSED_RATE:
-            return Grade(assessment=obj, enrollment=enrollment, is_excused=True,
-                         published_is_excused=True, published_at=obj.published_at, updated_by=teacher)
+            return Grade(
+                assessment=obj,
+                enrollment=enrollment,
+                is_excused=True,
+                published_is_excused=True,
+                published_at=obj.published_at,
+                updated_by=teacher,
+            )
         num = den = 0.0
         abilities = self.abilities[student.pk]
         for lo_no, w in a.lo.items():
@@ -266,5 +349,11 @@ class DemoBuilder:
                 den += w * pw
         percent = min(100.0, max(0.0, num / den + noise))
         score = min(Decimal(a.max_score), half(percent / 100 * a.max_score))
-        return Grade(assessment=obj, enrollment=enrollment, score=score, published_score=score,
-                     published_at=obj.published_at, updated_by=teacher)
+        return Grade(
+            assessment=obj,
+            enrollment=enrollment,
+            score=score,
+            published_score=score,
+            published_at=obj.published_at,
+            updated_by=teacher,
+        )
