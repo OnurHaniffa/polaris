@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from django import forms
 from pathlib import Path
+
+from django import forms
 
 from apps.accounts.models import ProgramMembership, User
 from apps.catalog.models import Course, CourseOffering, ProgramOutcome, ProgramOutcomeSet, Term
 from apps.core.forms import BootstrapFormMixin
+
 from .importers import MAX_BYTES
 
 
@@ -142,6 +144,7 @@ class POSetCopyForm(BootstrapFormMixin, forms.Form):
             raise forms.ValidationError(f"A PO set called “{label}” already exists.")
         return label
 
+
 class EnrollmentImportForm(forms.Form):
     offering = forms.ModelChoiceField(
         queryset=CourseOffering.objects.none(), label="Course offering"
@@ -159,8 +162,8 @@ class EnrollmentImportForm(forms.Form):
             .select_related("course", "term")
             .order_by("-term__starts_on", "course__code", "section")
         )
-        self.fields["offering"].label_from_instance = (
-            lambda o: f"{o.course.code} {o.course.title} · {o.term.name} · section {o.section}"
+        self.fields["offering"].label_from_instance = lambda o: (
+            f"{o.course.code} {o.course.title} · {o.term.name} · section {o.section}"
         )
 
     def clean_file(self):

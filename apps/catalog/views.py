@@ -6,17 +6,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.accounts.decorators import require_offering_access, require_role
-from apps.ingestion.models import IngestionJob
-from .forms import EnrollmentImportForm
-
-from .importers import (
-    PreviewOutdated,
-    confirm_enrollment_import,
-    create_enrollment_import_job,
-    stored_preview,
-)
-
-
 from apps.accounts.permissions import head_program_or_404, is_head
 from apps.accounts.services import get_or_create_student
 from apps.catalog import services
@@ -45,7 +34,16 @@ from apps.catalog.selectors import (
 )
 from apps.core.forms import add_service_errors
 from apps.core.navigation import offering_tabs, safe_reverse
+from apps.ingestion.models import IngestionJob
 from apps.outcomes.selectors import lint_counts
+
+from .forms import EnrollmentImportForm
+from .importers import (
+    PreviewOutdated,
+    confirm_enrollment_import,
+    create_enrollment_import_job,
+    stored_preview,
+)
 
 
 @login_required
@@ -449,6 +447,7 @@ def po_delete(request, po_id):
         template,
         {"po": po, "used_by": services.courses_using_po(po), "section": "outcomes"},
     )
+
 
 def _import_job(request, job_id):
     return get_object_or_404(

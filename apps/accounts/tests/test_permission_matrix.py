@@ -185,6 +185,8 @@ def offering_rows(name, method, kwargs_for, open_expect=WRITE_OPEN, closed_expec
         Row(name, method, open_expect, kwargs_for("open_offering"), "open"),
         Row(name, method, closed_expect, kwargs_for("closed_offering"), "closed"),
     ]
+
+
 def _enrollment_job(world: World) -> dict:
     """A READY enrollment import job on the CSE open offering, created by the CSE head."""
     from django.core.files.uploadedfile import SimpleUploadedFile
