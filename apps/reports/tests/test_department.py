@@ -18,10 +18,20 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def setup():
-    spring = TermFactory(code="2026S", name="Spring 2026", starts_on=date(2026, 2, 9),
-                         ends_on=date(2026, 6, 15), status=Term.Status.CLOSED)
-    fall = TermFactory(code="2026F", name="Fall 2026", starts_on=date(2026, 9, 14),
-                       ends_on=date(2027, 1, 22), status=Term.Status.OPEN)
+    spring = TermFactory(
+        code="2026S",
+        name="Spring 2026",
+        starts_on=date(2026, 2, 9),
+        ends_on=date(2026, 6, 15),
+        status=Term.Status.CLOSED,
+    )
+    fall = TermFactory(
+        code="2026F",
+        name="Fall 2026",
+        starts_on=date(2026, 9, 14),
+        ends_on=date(2027, 1, 22),
+        status=Term.Status.OPEN,
+    )
     a = one_lo_class(students_scores=[(None, 50), (None, 70), (None, 90)], term=spring)
     one_lo_class(students_scores=[(a.students[0], 30)], term=fall, po=a.po)
     head = UserFactory()
@@ -62,7 +72,7 @@ def test_offerings_list_flags_incomplete_setup(client, setup):
     statuses = {o.id: s for o, s in resp.context["offerings"]}
     assert statuses[bare.id].is_complete is False
     assert b"CSE 999" in resp.content
-    assert b"\xe2\x9c\x97 LOs" in resp.content          # "✗ LOs"
+    assert b"\xe2\x9c\x97 LOs" in resp.content  # "✗ LOs"
 
 
 def test_instructor_cannot_open_department(client, setup):
