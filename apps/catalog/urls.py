@@ -16,6 +16,17 @@ urlpatterns = [
         views.po_set_activate,
         name="po_set_activate",
     ),
+    path("department/enrollments/import/", views.enrollment_import, name="enrollment_import"),
+    path(
+        "department/enrollments/import/<int:job_id>/",
+        views.enrollment_import_preview,
+        name="enrollment_import_preview",
+    ),
+    path(
+        "department/enrollments/import/<int:job_id>/confirm/",
+        views.enrollment_import_confirm,
+        name="enrollment_import_confirm",
+    ),
     path("department/outcomes/<int:po_id>/edit/", views.po_edit, name="po_edit"),
     path("department/outcomes/<int:po_id>/delete/", views.po_delete, name="po_delete"),
     # department: terms, courses, offerings, enrollments

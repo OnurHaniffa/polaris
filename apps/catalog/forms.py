@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from django import forms
 
 from apps.accounts.models import ProgramMembership, User
 from apps.catalog.models import Course, CourseOffering, ProgramOutcome, ProgramOutcomeSet, Term
 from apps.core.forms import BootstrapFormMixin
+
+from .importers import MAX_BYTES
 
 
 class DateInput(forms.DateInput):
@@ -139,3 +143,33 @@ class POSetCopyForm(BootstrapFormMixin, forms.Form):
         if ProgramOutcomeSet.objects.filter(program=self.program, label=label).exists():
             raise forms.ValidationError(f"A PO set called “{label}” already exists.")
         return label
+
+
+class EnrollmentImportForm(forms.Form):
+    offering = forms.ModelChoiceField(
+        queryset=CourseOffering.objects.none(), label="Course offering"
+    )
+    file = forms.FileField(
+        label="Class list (CSV)",
+        help_text="Columns: student_number, email, first_name, last_name, cohort_year",
+    )
+
+    def __init__(self, *args, program, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["offering"].queryset = (
+            CourseOffering.objects.filter(course__program=program)
+            .exclude(term__status=Term.Status.CLOSED)
+            .select_related("course", "term")
+            .order_by("-term__starts_on", "course__code", "section")
+        )
+        self.fields["offering"].label_from_instance = lambda o: (
+            f"{o.course.code} {o.course.title} · {o.term.name} · section {o.section}"
+        )
+
+    def clean_file(self):
+        f = self.cleaned_data["file"]
+        if Path(f.name).suffix.lower() not in {".csv", ".txt"}:
+            raise forms.ValidationError("Upload a .csv file. In Excel: File → Save As → CSV UTF-8.")
+        if f.size > MAX_BYTES:
+            raise forms.ValidationError("The file is larger than 1 MB.")
+        return f

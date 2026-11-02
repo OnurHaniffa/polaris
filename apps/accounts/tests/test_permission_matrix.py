@@ -187,6 +187,25 @@ def offering_rows(name, method, kwargs_for, open_expect=WRITE_OPEN, closed_expec
     ]
 
 
+def _enrollment_job(world: World) -> dict:
+    """A READY enrollment import job on the CSE open offering, created by the CSE head."""
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from apps.catalog.importers import create_enrollment_import_job
+
+    upload = SimpleUploadedFile(
+        "class.csv",
+        b"student_number,email,first_name,last_name,cohort_year\n"
+        b"2024-0001,matrix@x.edu,Ada,Lovelace,2024\n",
+        content_type="text/csv",
+    )
+    job = create_enrollment_import_job(world.users["head"], world.open_offering, upload)
+    return {"job_id": job.pk}
+
+
+# Preview: CSE head and admin only. Confirm redirects (back to the enrollments page).
+ENROLLMENT_JOB_CONFIRM = {**CSE_OBJECT, "head": 302, "admin": 302}
+
 ROWS: list[Row] = [
     Row("healthz", "GET", PUBLIC),
     Row("home", "GET", HOME),
@@ -205,6 +224,9 @@ ROWS: list[Row] = [
         lambda world: {"uidb64": "MQ", "token": "abc-123"},
         "bad token",
     ),
+    Row("catalog:enrollment_import", "GET", DEPARTMENT),
+    Row("catalog:enrollment_import_preview", "GET", CSE_OBJECT, _enrollment_job),
+    Row("catalog:enrollment_import_confirm", "POST", ENROLLMENT_JOB_CONFIRM, _enrollment_job),
     Row("accounts:password_reset_complete", "GET", PUBLIC),
     Row("catalog:teaching", "GET", TEACHING),
     Row("catalog:offering", "GET", READ_OFFERING, offering_kwargs("open_offering"), "open"),
