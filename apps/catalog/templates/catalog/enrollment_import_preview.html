@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Import preview{% endblock %}
+
+{% block content %}
+<h1 class="h3">Import preview <small class="text-body-secondary">{{ job.original_filename }}</small></h1>
+<p>Into <strong>{{ job.offering.course.code }} {{ job.offering.course.title }}</strong> · {{ job.offering.term.name }}.
+   Nothing has been saved yet.</p>
+
+{% if preview.file_errors %}
+  <div class="alert alert-danger">
+    {% for e in preview.file_errors %}<p class="mb-0">{{ e }}</p>{% endfor %}
+  </div>
+  <a href="{% url 'catalog:enrollment_import' %}" class="btn btn-outline-primary">Upload another file</a>
+{% else %}
+  {% with c=preview.counts %}
+  <div class="row g-2 mb-3 text-center">
+    <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="fs-4">{{ c.new }}</div><div class="small">✚ new accounts</div></div></div>
+    <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="fs-4">{{ c.existing }}</div><div class="small">✓ known students to enroll</div></div></div>
+    <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="fs-4">{{ c.enrolled }}</div><div class="small">= already enrolled</div></div></div>
+    <div class="col-6 col-md-3"><div class="border rounded p-2 {% if c.error %}border-danger{% endif %}"><div class="fs-4">{{ c.error }}</div><div class="small">✗ rows with errors</div></div></div>
+  </div>
+  {% endwith %}
+
+  <div class="table-responsive mb-3" style="max-height: 60vh">
+    <table class="table table-sm align-middle">
+      <thead class="pl-sticky-head">
+        <tr><th scope="col">Line</th><th scope="col">Student no.</th><th scope="col">Name</th>
+            <th scope="col">Email</th><th scope="col">Cohort</th><th scope="col">Result</th></tr>
+      </thead>
+      <tbody>
+        {% for r in preview.rows %}
+          <tr class="{% if r.status == 'error' %}table-danger{% elif r.status == 'enrolled' %}text-body-secondary{% endif %}">
+            <td>{{ r.line }}</td>
+            <td class="font-monospace">{{ r.student_number }}</td>
+            <td>{{ r.first_name }} {{ r.last_name }}</td>
+            <td>{{ r.email }}</td>
+            <td>{{ r.cohort_year|default:"" }}</td>
+            <td>
+              {% if r.status == "new" %}✚ New account
+              {% elif r.status == "existing" %}✓ Enroll
+              {% elif r.status == "enrolled" %}= Already enrolled
+              {% else %}✗ {% for e in r.errors %}<span class="d-block">{{ e }}</span>{% endfor %}{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if job.status == "ready" %}
+    <form method="post" action="{% url 'catalog:enrollment_import_confirm' job.id %}" class="d-flex flex-wrap align-items-center gap-3">
+      {% csrf_token %}
+      {% if preview.has_errors %}
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="skip_invalid" id="skip_invalid" value="1">
+          <label class="form-check-label" for="skip_invalid">Skip rows with errors and import the rest</label>
+        </div>
+      {% endif %}
+      <button type="submit" class="btn btn-primary" {% if not preview.actionable %}disabled{% endif %}>
+        Confirm import ({{ preview.actionable }} student{{ preview.actionable|pluralize }})
+      </button>
+      <a href="{% url 'catalog:enrollment_import' %}" class="btn btn-link">Start over</a>
+    </form>
+  {% else %}
+    <div class="alert alert-info">This import was {{ job.get_status_display|lower }}.</div>
+  {% endif %}
+{% endif %}
+{% endblock %}

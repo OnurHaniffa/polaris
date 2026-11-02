@@ -6,6 +6,17 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.accounts.decorators import require_offering_access, require_role
+from apps.ingestion.models import IngestionJob
+from .forms import EnrollmentImportForm
+
+from .importers import (
+    PreviewOutdated,
+    confirm_enrollment_import,
+    create_enrollment_import_job,
+    stored_preview,
+)
+
+
 from apps.accounts.permissions import head_program_or_404, is_head
 from apps.accounts.services import get_or_create_student
 from apps.catalog import services
@@ -438,3 +449,67 @@ def po_delete(request, po_id):
         template,
         {"po": po, "used_by": services.courses_using_po(po), "section": "outcomes"},
     )
+
+def _import_job(request, job_id):
+    return get_object_or_404(
+        IngestionJob.objects.select_related("offering__course", "offering__term"),
+        pk=job_id,
+        kind=IngestionJob.Kind.ENROLLMENTS,
+        offering__course__program=_program(request),
+    )
+
+
+@login_required
+@require_role("head")
+def enrollment_import(request):
+    program = _program(request)
+    form = EnrollmentImportForm(request.POST or None, request.FILES or None, program=program)
+    if request.method == "POST" and form.is_valid():
+        job = create_enrollment_import_job(
+            request.user, form.cleaned_data["offering"], form.cleaned_data["file"]
+        )
+        return redirect("catalog:enrollment_import_preview", job_id=job.pk)
+    return render(request, "catalog/enrollment_import.html", {"form": form})
+
+
+@login_required
+@require_role("head")
+def enrollment_import_preview(request, job_id):
+    job = _import_job(request, job_id)
+    return render(
+        request,
+        "catalog/enrollment_import_preview.html",
+        {"job": job, "preview": stored_preview(job)},
+    )
+
+
+@login_required
+@require_role("head")
+@require_POST
+def enrollment_import_confirm(request, job_id):
+    job = _import_job(request, job_id)
+    try:
+        result = confirm_enrollment_import(
+            request.user,
+            job,
+            skip_invalid=bool(request.POST.get("skip_invalid")),
+            request=request,
+        )
+    except PreviewOutdated:
+        messages.warning(
+            request,
+            "Something changed since you opened this preview. "
+            "Here is the updated one. Check it and confirm again.",
+        )
+        return redirect("catalog:enrollment_import_preview", job_id=job.pk)
+    except ValidationError as exc:
+        for message in exc.messages:
+            messages.error(request, message)
+        return redirect("catalog:enrollment_import_preview", job_id=job.pk)
+
+    messages.success(
+        request,
+        f"Imported: {result.enrolled} enrolled, {result.reactivated} re-enrolled, "
+        f"{result.created_accounts} new account(s) emailed, {result.skipped} row(s) skipped.",
+    )
+    return redirect("catalog:enrollments", offering_id=job.offering_id)

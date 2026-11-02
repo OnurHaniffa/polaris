@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Import a class list{% endblock %}
+
+{% block content %}
+<h1 class="h3">Import a class list</h1>
+<div class="row g-4">
+  <div class="col-lg-6">
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="mb-3">
+          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+          {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </div>
+      {% endfor %}
+      <button type="submit" class="btn btn-primary">Upload and preview</button>
+      <span class="small text-body-secondary ms-2">Nothing is saved until you confirm.</span>
+    </form>
+  </div>
+  <div class="col-lg-6">
+    <h2 class="h6">File format</h2>
+    <pre class="bg-body-tertiary p-2 small mb-2">student_number,email,first_name,last_name,cohort_year
+2024-0001,ayse.kaya@example.edu,Ayşe,Kaya,2024
+2024-0002,mert.demir@example.edu,Mert,Demir,2024</pre>
+    <ul class="small">
+      <li>Excel's Turkish CSV (semicolons, Windows-1254) works too.</li>
+      <li>Students we already know are matched by student number.</li>
+      <li>New students get an account and an email to set their password.</li>
+    </ul>
+    <a href="{% static 'samples/sample_class.csv' %}" download>Download a sample file</a>
+  </div>
+</div>
+{% endblock %}
