@@ -11,7 +11,10 @@ from apps.catalog.models import Enrollment, ProgramOutcome
 
 from .engine import ZERO, NodeScore, compute_student_profile
 from .loaders import load_offering_inputs
-
+from apps.accounts.models import ProgramMembership, User
+from apps.catalog.selectors import active_po_set
+from .engine import compute_student_profile
+from .loaders import load_student_inputs
 BUCKETS = 10
 NO_EVIDENCE = NodeScore(score=None, coverage=ZERO)
 
@@ -139,3 +142,59 @@ def class_lo_summary(offering) -> ClassLOSummary:
     return ClassLOSummary(
         los=stats, rows=rows, po_contribution=contribution, enrolled=len(enrollments)
     )
+@dataclass(frozen=True)
+class POSummary:
+    po: ProgramOutcome
+    mean: Decimal | None
+    n_evidence: int                          # bu PO için herhangi bir puanı olan öğrenci sayısı
+    n_attaining: int                         # bunlardan puanı >= eşik olanlar
+
+    @property
+    def rate(self) -> Decimal | None:
+        """Başarı oranı (P11), 0..1. Kimsenin kanıtı yoksa None."""
+        if self.n_evidence == 0:
+            return None
+        return Decimal(self.n_attaining) / Decimal(self.n_evidence)
+
+
+def program_po_summary(program, *, terms, include_open_terms, cohort=None) -> list[POSummary]:
+    """Programın aktif PO setindeki her PO için, `terms` içindeki en son döneme kadar
+    öğrencilerin kümülatif PO puanlarının ortalaması."""
+    terms = list(terms)
+    pos = list(active_po_set(program).outcomes.all())
+    if not terms:
+        return [POSummary(po=po, mean=None, n_evidence=0, n_attaining=0) for po in pos]
+    up_to_term = max(terms, key=lambda t: t.starts_on)
+    threshold = program.attainment_threshold
+
+    # Tek filter çağrısı: rol ve kohort aynı membership satırına bağlanır.
+    membership = {
+        "memberships__program": program,
+        "memberships__role": ProgramMembership.Role.STUDENT,
+    }
+    if cohort is not None:
+        membership["memberships__cohort_year"] = cohort
+    students = User.objects.filter(**membership)
+
+    values: dict[int, list[Decimal]] = {po.id: [] for po in pos}
+    for student in students.distinct().order_by("pk").iterator():
+        inputs = load_student_inputs(
+            student, include_open_terms=include_open_terms, up_to_term=up_to_term
+        )
+        if not inputs:
+            continue
+        profile = compute_student_profile(inputs)
+        for po in pos:
+            ns = profile.po_scores.get(po.id)
+            if ns is not None and ns.score is not None:
+                values[po.id].append(ns.score)
+
+    return [
+        POSummary(
+            po=po,
+            mean=mean(values[po.id]),
+            n_evidence=len(values[po.id]),
+            n_attaining=sum(1 for v in values[po.id] if v >= threshold),
+        )
+        for po in pos
+    ]
