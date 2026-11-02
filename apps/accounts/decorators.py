@@ -58,10 +58,7 @@ def require_offering_access(*, edit: bool = False, lookup=None):
             if not request.user.is_authenticated:
                 return redirect_to_login(request.get_full_path())
 
-            if lookup is not None:
-                offering_id = lookup(**kwargs)
-            else:
-                offering_id = kwargs.pop("offering_id", None)
+            offering_id = lookup(**kwargs) if lookup is not None else kwargs.pop("offering_id", None)
 
             if offering_id is None:
                 raise Http404("Page not found")
