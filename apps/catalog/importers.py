@@ -9,11 +9,17 @@ from dataclasses import asdict, dataclass, field
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
+from django.db import transaction
 from django.db.models.functions import Lower
+from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.accounts.services import get_or_create_student, send_set_password_email
+from apps.core.audit import record
+from apps.ingestion.models import IngestionJob
 
 from .models import Enrollment
+from .services import ensure_term_open
 
 MAX_BYTES = 1_000_000
 COLUMNS = ("student_number", "email", "first_name", "last_name", "cohort_year")
@@ -271,3 +277,115 @@ def _match_against_database(preview: EnrollmentImportPreview, offering) -> None:
             row.fail(f"{row.email} already belongs to another account{suffix}.")
             continue
         row.status = "new"
+
+
+def create_enrollment_import_job(user, offering, uploaded_file) -> IngestionJob:
+    preview = parse_enrollment_csv(uploaded_file, offering=offering)
+    uploaded_file.seek(0)
+    return IngestionJob.objects.create(
+        offering=offering,
+        kind=IngestionJob.Kind.ENROLLMENTS,
+        file=uploaded_file,
+        original_filename=uploaded_file.name[:255],
+        status=IngestionJob.Status.READY,
+        result=preview.to_json(),
+        created_by=user,
+    )
+
+
+def stored_preview(job: IngestionJob) -> EnrollmentImportPreview:
+    return EnrollmentImportPreview.from_json(job.result or {})
+
+
+def confirm_enrollment_import(
+    user, job: IngestionJob, *, skip_invalid=False, request=None
+) -> ImportResult:
+    with transaction.atomic():
+        job = (
+            IngestionJob.objects.select_for_update()
+            .select_related("offering__course__program", "offering__term")
+            .get(pk=job.pk)
+        )
+        if job.status != IngestionJob.Status.READY:
+            raise ValidationError("This import was already applied or discarded.")
+        offering = job.offering
+        ensure_term_open(offering)
+
+        with job.file.open("rb") as f:
+            fresh = parse_enrollment_csv(f, offering=offering)
+        outdated = fresh.signature() != stored_preview(job).signature()
+        if outdated:
+            job.result = fresh.to_json()
+            job.save(update_fields=["result", "updated_at"])
+        else:
+            result = apply_enrollment_import(
+                user, offering, fresh, skip_invalid=skip_invalid, request=request
+            )
+            job.status = IngestionJob.Status.APPLIED
+            job.applied_at = timezone.now()
+            job.save(update_fields=["status", "applied_at", "updated_at"])
+
+    if outdated:
+        raise PreviewOutdated(fresh)  # outside the transaction, or the save above rolls back
+    return result
+
+
+def apply_enrollment_import(
+    user, offering, preview: EnrollmentImportPreview, *, skip_invalid=False, request=None
+) -> ImportResult:
+    """Write a preview. Call inside a transaction (confirm does)."""
+    if preview.file_errors:
+        raise ValidationError(preview.file_errors)
+    if preview.has_errors and not skip_invalid:
+        raise ValidationError(
+            "Some rows have errors. Fix the file, or tick “skip rows with errors”."
+        )
+
+    program = offering.course.program
+    created = enrolled = reactivated = skipped = 0
+    for row in preview.rows:
+        if row.status in ("error", "enrolled"):
+            skipped += 1
+            continue
+        student, is_new = get_or_create_student(
+            student_number=row.student_number,
+            email=row.email,
+            first_name=row.first_name,
+            last_name=row.last_name,
+            program=program,
+            cohort_year=row.cohort_year,
+            actor=user,
+        )
+        enrollment, enr_created = Enrollment.objects.get_or_create(
+            offering=offering, student=student
+        )
+        if enr_created:
+            enrolled += 1
+            record(
+                user,
+                "enrollment.create",
+                enrollment,
+                offering=offering,
+                after={"student": student.student_number, "status": enrollment.status},
+            )
+        elif enrollment.status == Enrollment.Status.DROPPED:
+            enrollment.status = Enrollment.Status.ENROLLED
+            enrollment.save(update_fields=["status"])
+            reactivated += 1
+            record(
+                user,
+                "enrollment.reactivate",
+                enrollment,
+                offering=offering,
+                before={"status": "dropped"},
+                after={"status": "enrolled"},
+            )
+        if is_new:
+            created += 1
+            transaction.on_commit(lambda s=student: send_set_password_email(s, request))
+    return ImportResult(
+        created_accounts=created,
+        enrolled=enrolled,
+        reactivated=reactivated,
+        skipped=skipped,
+    )
