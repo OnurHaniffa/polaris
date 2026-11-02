@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+from django.conf import settings
+from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
 from django.db import transaction
+from django.template.loader import render_to_string
+from django.urls import reverse
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
-from apps.accounts.models import ProgramMembership, User
 from apps.core import audit
+
+from .models import ProgramMembership, User
 
 
 @transaction.atomic
@@ -67,3 +75,23 @@ def get_or_create_student(
             after={"role": "student", "program": program.code, "cohort_year": cohort_year},
         )
     return user, created
+
+
+def set_password_link(user, request=None) -> str:
+    path = reverse(
+        "accounts:password_reset_confirm",
+        kwargs={
+            "uidb64": urlsafe_base64_encode(force_bytes(user.pk)),
+            "token": default_token_generator.make_token(user),
+        },
+    )
+    if request is not None:
+        return request.build_absolute_uri(path)
+    return settings.SITE_URL.rstrip("/") + path
+
+
+def send_set_password_email(user, request=None) -> None:
+    context = {"user": user, "link": set_password_link(user, request)}
+    subject = render_to_string("accounts/email/set_password_subject.txt", context).strip()
+    body = render_to_string("accounts/email/set_password.txt", context)
+    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email])
