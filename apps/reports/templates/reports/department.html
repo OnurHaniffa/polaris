@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load polaris %}
+
+{% block title %}Department · {{ program.code }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+  <h1 class="h3 mb-0">Department · {{ program.code }}</h1>
+  <form method="get" class="d-flex flex-wrap align-items-end gap-2" aria-label="Filters">
+    <div>
+      <label for="{{ form.term.id_for_label }}" class="form-label small mb-0">{{ form.term.label }}</label>
+      {{ form.term }}
+    </div>
+    <div class="form-check mb-1">
+      {{ form.include_open }}
+      <label for="{{ form.include_open.id_for_label }}" class="form-check-label">{{ form.include_open.label }}</label>
+    </div>
+    <button type="submit" class="btn btn-outline-primary btn-sm mb-1">Apply</button>
+  </form>
+</div>
+
+<p class="text-body-secondary">{{ scope_label }} Threshold {{ threshold|score }}.</p>
+
+{% if not selected_term %}
+  {% include "includes/empty_state.html" with title="No terms yet" message="Create a term and its course offerings first. Scores appear once instructors publish grades." only %}
+{% else %}
+<div class="table-responsive mb-4">
+  <table class="table align-middle pl-scores">
+    <caption class="visually-hidden">Program outcome averages and attainment</caption>
+    <thead>
+      <tr>
+        <th scope="col">PO</th><th scope="col">Outcome</th>
+        <th scope="col" class="text-end">Average</th>
+        <th scope="col" class="text-end">Students with evidence</th>
+        <th scope="col" class="w-25">Attaining (≥ {{ threshold|score }})</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in summaries %}
+        <tr>
+          <td class="fw-semibold">{{ s.po.number }}</td>
+          <td title="{{ s.po.description }}">{{ s.po.short_name }}</td>
+          <td class="text-end">{% include "includes/score_badge.html" with value=s.mean threshold=threshold only %}</td>
+          <td class="text-end">{{ s.n_evidence }}</td>
+          <td>
+            {% if s.rate is None %}
+              <span class="text-body-secondary small">No student has evidence yet</span>
+            {% else %}
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" role="progressbar" aria-label="Attainment rate PO {{ s.po.number }}"
+                     aria-valuenow="{{ s.n_attaining }}" aria-valuemin="0" aria-valuemax="{{ s.n_evidence }}" style="height: 8px">
+                  <div class="progress-bar" style="width: {{ s.rate|pct }}"></div>
+                </div>
+                <span class="small text-nowrap">{{ s.rate|pct }} <span class="text-body-secondary">({{ s.n_attaining }}/{{ s.n_evidence }})</span></span>
+              </div>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2 class="h5">{{ selected_term.name }} courses
+  <small class="text-body-secondary">{{ complete_count }} of {{ offerings|length }} fully set up</small></h2>
+{% if offerings %}
+  <div class="list-group">
+    {% for offering, status in offerings %}
+      <a href="{% url 'catalog:offering' offering.id %}" class="list-group-item list-group-item-action">
+        <div class="d-flex justify-content-between flex-wrap gap-2">
+          <span><span class="fw-semibold">{{ offering.course.code }}</span> {{ offering.course.title }}
+            <span class="small text-body-secondary">· {% for i in offering.instructors.all %}{{ i.get_full_name }}{% if not forloop.last %}, {% endif %}{% empty %}no instructor{% endfor %}</span></span>
+          <span class="d-flex flex-wrap gap-1">
+            <span class="badge {% if status.has_los %}text-bg-success{% else %}text-bg-danger{% endif %}">{% if status.has_los %}✓{% else %}✗{% endif %} LOs</span>
+            <span class="badge {% if status.has_assessments %}text-bg-success{% else %}text-bg-danger{% endif %}">{% if status.has_assessments %}✓{% else %}✗{% endif %} Assessments</span>
+            <span class="badge {% if status.has_assessment_lo and status.has_lo_po %}text-bg-success{% else %}text-bg-danger{% endif %}">{% if status.has_assessment_lo and status.has_lo_po %}✓{% else %}✗{% endif %} Mapping</span>
+            <span class="badge {% if status.has_students %}text-bg-success{% else %}text-bg-warning{% endif %}">{% if status.has_students %}✓{% else %}!{% endif %} Students</span>
+            <span class="badge text-bg-light border">{{ status.published_count }}/{{ status.assessment_count }} published</span>
+          </span>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="text-body-secondary">No offerings in {{ selected_term.name }}.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

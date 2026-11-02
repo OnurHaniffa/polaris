@@ -19,7 +19,7 @@ from apps.catalog.models import (
 from apps.catalog.selectors import po_set_for_student, setup_status
 from apps.grading.models import Grade
 from apps.outcomes.models import Assessment, LearningOutcome
-from apps.scoring.aggregates import class_lo_summary
+from apps.scoring.aggregates import class_lo_summary, program_po_summary
 from apps.scoring.engine import ZERO, NodeScore, compute_student_profile, display, normalise
 from apps.scoring.loaders import load_offering_inputs, load_student_inputs
 
@@ -269,4 +269,47 @@ def course_results_context(offering: CourseOffering) -> dict:
         "status": setup_status(offering),
         "threshold": offering.course.program.attainment_threshold,
         "in_progress": offering.term.status != Term.Status.CLOSED,
+    }
+
+
+def department_context(program: Program, *, terms, include_open_terms: bool, cohort=None) -> dict:
+    terms = list(terms)
+    selected = max(terms, key=lambda t: t.starts_on) if terms else None
+    summaries = program_po_summary(
+        program, terms=terms, include_open_terms=include_open_terms, cohort=cohort
+    )
+
+    offerings = []
+    if selected is not None:
+        qs = (
+            CourseOffering.objects.filter(term=selected, course__program=program)
+            .select_related("course", "term")
+            .prefetch_related("instructors")
+            .order_by("course__code", "section")
+        )
+        offerings = [(o, setup_status(o)) for o in qs]
+
+    open_terms_in_range = [t for t in terms if t.status != Term.Status.CLOSED]
+    if selected is None:
+        scope = "No terms yet."
+    elif include_open_terms:
+        scope = f"All terms up to {selected.name}, including courses still in progress."
+    elif open_terms_in_range:
+        names = ", ".join(t.name for t in open_terms_in_range)
+        scope = (
+            f"Closed terms up to {selected.name}. {names} "
+            f"{'is' if len(open_terms_in_range) == 1 else 'are'} still open and not counted."
+        )
+    else:
+        scope = f"Closed terms up to {selected.name}."
+
+    return {
+        "program": program,
+        "threshold": program.attainment_threshold,
+        "summaries": summaries,
+        "selected_term": selected,
+        "include_open_terms": include_open_terms,
+        "scope_label": scope,
+        "offerings": offerings,
+        "complete_count": sum(1 for _o, s in offerings if s.is_complete),
     }

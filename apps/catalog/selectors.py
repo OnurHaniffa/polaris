@@ -8,7 +8,7 @@ from apps.accounts.models import ProgramMembership
 from apps.accounts.permissions import can_view_offering
 from apps.outcomes.models import AssessmentLOWeight, LearningOutcome, LOPOWeight
 
-from .models import CourseOffering, Enrollment, ProgramOutcomeSet
+from .models import CourseOffering, Enrollment, ProgramOutcomeSet, Term
 
 
 def active_po_set(program):
@@ -191,3 +191,11 @@ def setup_statuses(offering_ids) -> dict[int, SetupStatus]:
 def setup_status(offering) -> SetupStatus:
     """Checklist state for one offering, in one query."""
     return setup_statuses([offering.pk])[offering.pk]
+
+
+def default_report_term() -> Term | None:
+    """Latest closed term (P10); if nothing is closed yet, the latest started term."""
+    return (
+        Term.objects.filter(status=Term.Status.CLOSED).order_by("-starts_on").first()
+        or Term.objects.exclude(status=Term.Status.PLANNED).order_by("-starts_on").first()
+    )

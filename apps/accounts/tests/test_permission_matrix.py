@@ -263,6 +263,7 @@ ROWS: list[Row] = [
         CSE_OBJECT,
         lambda world: {**_cse_po(world), "user_id": world.users["student"].pk},
     ),
+    Row("reports:department", "GET", DEPARTMENT),
     Row("reports:results", "GET", READ_OFFERING, offering_kwargs("open_offering"), "open"),
     Row("reports:results", "GET", READ_OFFERING, offering_kwargs("closed_offering"), "closed"),
 ]
