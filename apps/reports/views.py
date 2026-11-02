@@ -43,6 +43,7 @@ def course_results(request, offering, perms_for):
     ctx["perms_for"] = perms_for
     return render(request, "reports/course_results.html", ctx)
 
+
 def _selected_terms(request, program):
     """Read the term filter from the query string. Returns (terms, include_open, form).
     Shared by the dashboard and every drill-down (S6-05)."""

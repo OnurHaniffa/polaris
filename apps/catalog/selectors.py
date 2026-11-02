@@ -194,7 +194,6 @@ def setup_status(offering) -> SetupStatus:
 
 
 def default_report_term() -> Term | None:
-
     """Latest closed term (P10); if nothing is closed yet, the latest started term."""
     return (
         Term.objects.filter(status=Term.Status.CLOSED).order_by("-starts_on").first()

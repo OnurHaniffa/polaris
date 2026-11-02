@@ -271,6 +271,7 @@ def course_results_context(offering: CourseOffering) -> dict:
         "in_progress": offering.term.status != Term.Status.CLOSED,
     }
 
+
 def department_context(program: Program, *, terms, include_open_terms: bool, cohort=None) -> dict:
     terms = list(terms)
     selected = max(terms, key=lambda t: t.starts_on) if terms else None
@@ -281,8 +282,7 @@ def department_context(program: Program, *, terms, include_open_terms: bool, coh
     offerings = []
     if selected is not None:
         qs = (
-            CourseOffering.objects
-            .filter(term=selected, course__program=program)
+            CourseOffering.objects.filter(term=selected, course__program=program)
             .select_related("course", "term")
             .prefetch_related("instructors")
             .order_by("course__code", "section")

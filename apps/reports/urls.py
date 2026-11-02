@@ -15,4 +15,3 @@ urlpatterns = [
     path("offerings/<int:offering_id>/results/", views.course_results, name="results"),
     path("department/", views.department, name="department"),
 ]
-
