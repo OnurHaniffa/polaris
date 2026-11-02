@@ -14,7 +14,7 @@ from pathlib import Path
 from openpyxl import Workbook
 
 HERE = Path(__file__).parent
-rng = random.Random(3118) # noqa: S311
+rng = random.Random(3118)  # noqa: S311
 FIXED_TIME = datetime(2026, 11, 6, 12, 0, 0)
 STUDENTS = [f"2024-{i:04d}" for i in range(1, 21)] + ["2024-0041"]  # 20 seeded + Elif
 NAMES = [
