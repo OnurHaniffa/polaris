@@ -13,5 +13,6 @@ urlpatterns = [
         name="department_student_po",
     ),
     path("offerings/<int:offering_id>/results/", views.course_results, name="results"),
-    # S3-03 and S3-04 add their paths here.
+    path("department/", views.department, name="department"),
 ]
+
