@@ -7,14 +7,13 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from decimal import Decimal
 
-from apps.catalog.models import Enrollment, ProgramOutcome
+from apps.accounts.models import ProgramMembership, User
+from apps.catalog.models import Enrollment, ProgramOutcome, ProgramOutcomeSet
+from apps.catalog.selectors import active_po_set
 
 from .engine import ZERO, NodeScore, compute_student_profile
-from .loaders import load_offering_inputs
-from apps.accounts.models import ProgramMembership, User
-from apps.catalog.selectors import active_po_set
-from .engine import compute_student_profile
-from .loaders import load_student_inputs
+from .loaders import load_offering_inputs, load_student_inputs
+
 BUCKETS = 10
 NO_EVIDENCE = NodeScore(score=None, coverage=ZERO)
 
@@ -142,12 +141,14 @@ def class_lo_summary(offering) -> ClassLOSummary:
     return ClassLOSummary(
         los=stats, rows=rows, po_contribution=contribution, enrolled=len(enrollments)
     )
+
+
 @dataclass(frozen=True)
 class POSummary:
     po: ProgramOutcome
     mean: Decimal | None
-    n_evidence: int                          # bu PO için herhangi bir puanı olan öğrenci sayısı
-    n_attaining: int                         # bunlardan puanı >= eşik olanlar
+    n_evidence: int  # bu PO için herhangi bir puanı olan öğrenci sayısı
+    n_attaining: int  # bunlardan puanı >= eşik olanlar
 
     @property
     def rate(self) -> Decimal | None:
@@ -161,7 +162,10 @@ def program_po_summary(program, *, terms, include_open_terms, cohort=None) -> li
     """Programın aktif PO setindeki her PO için, `terms` içindeki en son döneme kadar
     öğrencilerin kümülatif PO puanlarının ortalaması."""
     terms = list(terms)
-    pos = list(active_po_set(program).outcomes.all())
+    try:
+        pos = list(active_po_set(program).outcomes.all())
+    except ProgramOutcomeSet.DoesNotExist:
+        return []
     if not terms:
         return [POSummary(po=po, mean=None, n_evidence=0, n_attaining=0) for po in pos]
     up_to_term = max(terms, key=lambda t: t.starts_on)
