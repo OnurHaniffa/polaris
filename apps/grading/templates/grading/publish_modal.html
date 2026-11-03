@@ -1,0 +1,36 @@
+<div class="modal-header">
+  <h2 class="modal-title h5" id="sheet-modal-title">
+    {% if preview.is_first_publish %}Publish {{ preview.assessment.name }}?{% else %}Publish changes to {{ preview.assessment.name }}?{% endif %}
+  </h2>
+  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body">
+  {% if preview.can_publish %}
+    <p>
+      Students will see these grades immediately, all at once.
+      {% if not preview.is_first_publish %}{{ preview.changes }} grade{{ preview.changes|pluralize }} changed since the last publish.{% endif %}
+    </p>
+    <ul class="list-unstyled mb-0">
+      <li>✓ <strong>{{ preview.graded }}</strong> of {{ preview.enrolled }} students have a score</li>
+      {% if preview.excused %}<li>◌ <strong>{{ preview.excused }}</strong> excused</li>{% endif %}
+      {% if preview.missing %}
+        <li class="text-warning-emphasis">⚠ <strong>{{ preview.missing }}</strong> student{{ preview.missing|pluralize }} have no grade.
+          They will be <strong>skipped, not counted as zero</strong>. Enter 0 if you mean zero.</li>
+      {% endif %}
+    </ul>
+  {% else %}
+    <p class="mb-0">Nothing new to publish: students already see every grade in this column.</p>
+  {% endif %}
+</div>
+<div class="modal-footer">
+  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+  {% if preview.can_publish %}
+    <form hx-post="{% url 'grading:publish' offering_id=offering.id assessment_id=preview.assessment.id %}"
+          hx-disabled-elt="find button">
+      {{ form.expected_changes }}
+      <button type="submit" class="btn btn-primary">
+        Publish to {{ preview.graded|add:preview.excused }} students
+      </button>
+    </form>
+  {% endif %}
+</div>

@@ -4,7 +4,7 @@
 {% block title %}Grades · {{ offering.course.code }}{% endblock %}
 
 {% partialdef col_status %}
-<span id="col-status-{{ column.assessment.id }}" class="small d-block"
+<span id="col-status-{{ column.assessment.id }}" class="d-block small"
       {% if oob %}hx-swap-oob="true"{% endif %}>
   {% if column.is_published %}
     <span class="badge text-bg-success">Published</span>
@@ -14,6 +14,24 @@
   {% if column.unpublished %}
     <span class="badge text-bg-warning" title="Changes students can't see yet">
       {{ column.unpublished }} unpublished
+    </span>
+  {% endif %}
+  {% if perms_for.can_publish %}
+    <span class="d-block mt-1">
+      {% if column.unpublished %}
+        <button type="button" class="btn btn-sm btn-primary"
+                data-bs-toggle="modal" data-bs-target="#sheet-modal"
+                hx-get="{% url 'grading:publish' offering_id=offering.id assessment_id=column.assessment.id %}"
+                hx-target="#sheet-modal-content">
+          {% if column.is_published %}Publish changes{% else %}Publish{% endif %}
+        </button>
+      {% endif %}
+      {% if column.is_published %}
+        <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-1"
+                data-bs-toggle="modal" data-bs-target="#sheet-modal"
+                hx-get="{% url 'grading:unpublish' offering_id=offering.id assessment_id=column.assessment.id %}"
+                hx-target="#sheet-modal-content">Unpublish</button>
+      {% endif %}
     </span>
   {% endif %}
 </span>
@@ -48,7 +66,13 @@
   {% if cell.has_unpublished_change %}<span class="visually-hidden">Unpublished change</span>{% endif %}
 </td>
 {% endpartialdef %}
-
+<div class="modal fade" id="sheet-modal" tabindex="-1" aria-labelledby="sheet-modal-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" id="sheet-modal-content">
+      <div class="modal-body text-body-secondary">Loading…</div>
+    </div>
+  </div>
+</div>
 {% block content %}
 {% include "includes/offering_header.html" with offering=offering tabs=tabs perms_for=perms_for only %}
 <p class="text-body-secondary mb-3">{{ sheet.rows|length }} student{{ sheet.rows|length|pluralize }}</p>
