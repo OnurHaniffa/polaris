@@ -3,21 +3,21 @@
 from __future__ import annotations
 
 import re
-from decimal import Decimal
 from dataclasses import dataclass
-from django.db.models import F
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
-from apps.outcomes.models import Assessment
-from .selectors import publish_preview
 
 from apps.catalog.models import Enrollment, Term
 from apps.catalog.services import ensure_term_open
 from apps.core import audit
+from apps.outcomes.models import Assessment
 
 from .models import Grade
+from .selectors import publish_preview
 
 EXCUSED_WORDS = frozenset({"EX", "EXC", "EXCUSED", "M", "MUAF"})
 _NUMBER = re.compile(r"^\d{1,5}(?:[.,]\d{1,2})?$")
@@ -105,12 +105,14 @@ def save_grade(user, assessment, enrollment, raw: str | None) -> Grade | None:
             offering=offering,
         )
     return grade
+
+
 @dataclass(frozen=True)
 class PublishResult:
-    published: int          # students who now see a numeric score
-    excused: int            # students who now see "excused"
-    skipped_missing: int    # enrolled students with no grade: skipped, not zero (P5)
-    changed: int            # grades whose visible value changed with this publish
+    published: int  # students who now see a numeric score
+    excused: int  # students who now see "excused"
+    skipped_missing: int  # enrolled students with no grade: skipped, not zero (P5)
+    changed: int  # grades whose visible value changed with this publish
 
 
 def _iso(value):
@@ -120,9 +122,7 @@ def _iso(value):
 def publish_assessment(user, assessment, *, expected_changes: int | None = None) -> PublishResult:
     """Make the current draft grades of one assessment visible to students, all at once (B7)."""
     with transaction.atomic():
-        locked = (Assessment.objects.select_for_update(of=("self",))
-                  .select_related("offering")
-                  .get(pk=assessment.pk))
+        locked = Assessment.objects.select_for_update(of=("self",)).select_related("offering").get(pk=assessment.pk)
         offering = locked.offering
         _lock_open_term(offering)
 
@@ -144,8 +144,7 @@ def publish_assessment(user, assessment, *, expected_changes: int | None = None)
             published_is_excused=F("is_excused"),
             published_at=now,
         )
-        before = {"published_at": _iso(locked.published_at),
-                  "published_by": locked.published_by_id}
+        before = {"published_at": _iso(locked.published_at), "published_by": locked.published_by_id}
         locked.published_at = now
         locked.published_by = user
         locked.save(update_fields=["published_at", "published_by"])
@@ -156,14 +155,23 @@ def publish_assessment(user, assessment, *, expected_changes: int | None = None)
             skipped_missing=preview.missing,
             changed=preview.changes,
         )
-        audit.record(user, "assessment.publish", locked,
-                     before=before,
-                     after={"published_at": now.isoformat(), "published_by": user.pk,
-                            "published": result.published, "excused": result.excused,
-                            "skipped_missing": result.skipped_missing, "changed": result.changed},
-                     offering=offering)
+        audit.record(
+            user,
+            "assessment.publish",
+            locked,
+            before=before,
+            after={
+                "published_at": now.isoformat(),
+                "published_by": user.pk,
+                "published": result.published,
+                "excused": result.excused,
+                "skipped_missing": result.skipped_missing,
+                "changed": result.changed,
+            },
+            offering=offering,
+        )
         # T2.3 adds: transaction.on_commit(lambda: refresh_scores.delay(offering.id))
-    assessment.published_at = locked.published_at       # keep the caller's object in sync
+    assessment.published_at = locked.published_at  # keep the caller's object in sync
     assessment.published_by = locked.published_by
     return result
 
@@ -172,29 +180,31 @@ def unpublish_assessment(user, assessment, *, reason: str) -> int:
     """Hide all published grades of one assessment again. Returns how many grades were hidden."""
     reason = (reason or "").strip()
     if len(reason) < 5:
-        raise ValidationError("Say briefly why you are unpublishing (at least 5 characters).",
-                              code="reason")
+        raise ValidationError("Say briefly why you are unpublishing (at least 5 characters).", code="reason")
     with transaction.atomic():
-        locked = (Assessment.objects.select_for_update(of=("self",))
-                  .select_related("offering")
-                  .get(pk=assessment.pk))
+        locked = Assessment.objects.select_for_update(of=("self",)).select_related("offering").get(pk=assessment.pk)
         offering = locked.offering
         _lock_open_term(offering)
         if locked.published_at is None:
             raise ValidationError(f"{locked.name} is not published.", code="not_published")
 
-        hidden = (Grade.objects.filter(assessment=locked)
-                  .exclude(published_at=None)
-                  .update(published_score=None, published_is_excused=False, published_at=None))
-        before = {"published_at": _iso(locked.published_at),
-                  "published_by": locked.published_by_id}
+        hidden = (
+            Grade.objects.filter(assessment=locked)
+            .exclude(published_at=None)
+            .update(published_score=None, published_is_excused=False, published_at=None)
+        )
+        before = {"published_at": _iso(locked.published_at), "published_by": locked.published_by_id}
         locked.published_at = None
         locked.published_by = None
         locked.save(update_fields=["published_at", "published_by"])
-        audit.record(user, "assessment.unpublish", locked,
-                     before=before,
-                     after={"published_at": None, "hidden": hidden, "reason": reason},
-                     offering=offering)
+        audit.record(
+            user,
+            "assessment.unpublish",
+            locked,
+            before=before,
+            after={"published_at": None, "hidden": hidden, "reason": reason},
+            offering=offering,
+        )
     assessment.published_at = None
     assessment.published_by = None
     return hidden

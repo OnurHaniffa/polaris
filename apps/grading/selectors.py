@@ -126,6 +126,7 @@ def column_for(assessment) -> SheetColumn:
         graded=sum(1 for g in grades if g.score is not None or g.is_excused),
     )
 
+
 @dataclass(frozen=True)
 class PublishPreview:
     assessment: Assessment

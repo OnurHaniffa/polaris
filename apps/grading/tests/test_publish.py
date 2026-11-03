@@ -8,7 +8,11 @@ from django.test.utils import CaptureQueriesContext
 from apps.catalog.models import Enrollment, Term
 from apps.core.models import AuditEvent
 from apps.core.tests.factories import (
-    AssessmentFactory, EnrollmentFactory, GradeFactory, OfferingFactory, UserFactory,
+    AssessmentFactory,
+    EnrollmentFactory,
+    GradeFactory,
+    OfferingFactory,
+    UserFactory,
 )
 from apps.core.tests.scenarios import elif_scenario
 from apps.grading.models import Grade
@@ -61,10 +65,11 @@ def test_publish_copies_drafts_and_audits(midterm):
 
 def test_crash_after_update_publishes_nothing(midterm, monkeypatch):
     """B7 AC 2: a failure half-way leaves zero grades published."""
+
     def boom(*args, **kwargs):
         raise RuntimeError("audit table is on fire")
 
-    monkeypatch.setattr("apps.core.audit.record", boom)    # runs AFTER the UPDATE in the service
+    monkeypatch.setattr("apps.core.audit.record", boom)  # runs AFTER the UPDATE in the service
     with pytest.raises(RuntimeError):
         publish_assessment(UserFactory(), midterm)
 
@@ -116,8 +121,7 @@ def test_assessment_without_grades_cannot_be_published():
 def test_stale_confirmation_is_refused(midterm):
     """The modal showed 3 changes; someone typed another grade before Confirm."""
     user = UserFactory()
-    missing = Enrollment.objects.filter(offering=midterm.offering, status=Enrollment.Status.ENROLLED,
-                                        grades__isnull=True).get()
+    missing = Enrollment.objects.filter(offering=midterm.offering, status=Enrollment.Status.ENROLLED, grades__isnull=True).get()
     save_grade(user, midterm, missing, "70")
     with pytest.raises(ValidationError, match="changed while the confirmation was open"):
         publish_assessment(user, midterm, expected_changes=3)
@@ -135,10 +139,10 @@ def test_unpublish_hides_grades_keeps_drafts_and_records_reason(midterm):
     publish_assessment(user, midterm)
     hidden = unpublish_assessment(user, midterm, reason="Uploaded the wrong section's file")
 
-    assert hidden == 4                         # every published row, including the dropped student
+    assert hidden == 4  # every published row, including the dropped student
     for g in Grade.objects.filter(assessment=midterm):
         assert g.published_score is None and g.published_at is None
-    assert Grade.objects.filter(assessment=midterm, score=Decimal("90")).exists()   # drafts kept
+    assert Grade.objects.filter(assessment=midterm, score=Decimal("90")).exists()  # drafts kept
     event = AuditEvent.objects.get(action="assessment.unpublish")
     assert event.after["reason"] == "Uploaded the wrong section's file"
     midterm.refresh_from_db()
@@ -160,6 +164,7 @@ def test_unpublish_of_draft_assessment_is_refused(midterm):
 
 # ---- what students and the engine see (policy P4) ----
 
+
 def _po(profile, po):
     return display(profile.po_scores[po.id].score) if po.id in profile.po_scores else "—"
 
@@ -169,7 +174,7 @@ def test_scores_follow_publish_not_drafts():
     user = UserFactory()
 
     before = compute_student_profile(load_student_inputs(s.student))
-    assert (_po(before, s.po1), _po(before, s.po2)) == ("—", "—")        # B7 AC 1
+    assert (_po(before, s.po1), _po(before, s.po2)) == ("—", "—")  # B7 AC 1
 
     publish_assessment(user, s.midterm)
     publish_assessment(user, s.project)
@@ -177,7 +182,7 @@ def test_scores_follow_publish_not_drafts():
     assert (_po(after, s.po1), _po(after, s.po2)) == ("85.0", "82.9")
 
     enrollment = Enrollment.objects.get(offering=s.offering, student=s.student)
-    save_grade(user, s.midterm, enrollment, "50")                      # draft only
+    save_grade(user, s.midterm, enrollment, "50")  # draft only
     unchanged = compute_student_profile(load_student_inputs(s.student))
     assert (_po(unchanged, s.po1), _po(unchanged, s.po2)) == ("85.0", "82.9")
 
