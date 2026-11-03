@@ -260,6 +260,8 @@ ROWS: list[Row] = [
     # S2-06: grade sheet. An empty POST is a blank cell: nothing saved, the cell comes back.
     *offering_rows("grading:sheet", "GET", offering_kwargs, READ_OFFERING, READ_OFFERING),
     *offering_rows("grading:cell", "POST", _grade_cell),
+    *offering_rows("grading:publish", "GET", _with_assessment),
+    *offering_rows("grading:unpublish", "GET", _with_assessment),
     # S3-02: student pages
     Row("student:profile", "GET", STUDENT_PROFILE),
     Row("student:po_detail", "GET", STUDENT_PAGE, _cse_po),
