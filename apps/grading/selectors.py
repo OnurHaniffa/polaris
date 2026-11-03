@@ -125,3 +125,44 @@ def column_for(assessment) -> SheetColumn:
         unpublished=sum(1 for g in grades if g.has_unpublished_change),
         graded=sum(1 for g in grades if g.score is not None or g.is_excused),
     )
+
+
+@dataclass(frozen=True)
+class PublishPreview:
+    assessment: Assessment
+    enrolled: int  # students currently enrolled
+    graded: int  # have a numeric score
+    excused: int  # marked EX
+    missing: int  # no value at all: skipped, NOT zero (policy P5)
+    changes: int  # grades that differ from what students see now
+
+    @property
+    def is_first_publish(self) -> bool:
+        return self.assessment.published_at is None
+
+    @property
+    def can_publish(self) -> bool:
+        return self.changes > 0
+
+
+def publish_preview(assessment) -> PublishPreview:
+    """Counts for the publish modal and the publish service. Two queries."""
+    enrolled = Enrollment.objects.filter(
+        offering_id=assessment.offering_id,
+        status=Enrollment.Status.ENROLLED,
+    ).count()
+    grades = list(
+        Grade.objects.filter(assessment=assessment, enrollment__status=Enrollment.Status.ENROLLED).only(
+            "score", "is_excused", "published_score", "published_is_excused"
+        )
+    )
+    graded = sum(1 for g in grades if g.score is not None and not g.is_excused)
+    excused = sum(1 for g in grades if g.is_excused)
+    return PublishPreview(
+        assessment=assessment,
+        enrolled=enrolled,
+        graded=graded,
+        excused=excused,
+        missing=enrolled - graded - excused,
+        changes=sum(1 for g in grades if g.has_unpublished_change),
+    )

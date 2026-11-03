@@ -11,4 +11,6 @@ urlpatterns = [
         views.cell,
         name="cell",
     ),
+    path("offerings/<int:offering_id>/grades/<int:assessment_id>/publish/", views.publish, name="publish"),
+    path("offerings/<int:offering_id>/grades/<int:assessment_id>/unpublish/", views.unpublish, name="unpublish"),
 ]
