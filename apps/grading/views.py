@@ -4,6 +4,13 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_GET, require_POST
+from django.contrib import messages
+from django.http import Http404
+from django.shortcuts import redirect
+from django.urls import reverse
+from django.views.decorators.http import require_http_methods
+from django_htmx.http import HttpResponseClientRedirect
+from .forms import PublishForm, UnpublishForm
 
 from apps.accounts.decorators import require_offering_access
 from apps.catalog.models import Enrollment
@@ -70,3 +77,72 @@ def cell(request, *, offering, perms_for, assessment_id, enrollment_id, **_):
         request,
     )
     return HttpResponse(html)
+def _back_to_sheet(request, offering):
+    url = reverse("grading:sheet", kwargs={"offering_id": offering.id})
+    return HttpResponseClientRedirect(url) if request.htmx else redirect(url)
+
+
+def _publish_message(assessment, result) -> str:
+    parts = [f"{assessment.name} published to {result.published + result.excused} students."]
+    if result.excused:
+        parts.append(f"{result.excused} excused.")
+    if result.skipped_missing:
+        parts.append(f"{result.skipped_missing} had no grade and were skipped (not counted as zero).")
+    return " ".join(parts)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+@require_offering_access(edit=True)
+def publish(request, *, offering, perms_for, assessment_id, **_):
+    if not perms_for.can_publish:
+        raise Http404
+    assessment = get_object_or_404(Assessment, pk=assessment_id, offering=offering)
+
+    if request.method == "POST":
+        form = PublishForm(request.POST)
+        if form.is_valid():
+            try:
+                result = services.publish_assessment(
+                    request.user, assessment,
+                    expected_changes=form.cleaned_data["expected_changes"],
+                )
+            except ValidationError as exc:
+                messages.error(request, " ".join(exc.messages))
+            else:
+                messages.success(request, _publish_message(assessment, result))
+        else:
+            messages.error(request, "The publish form was incomplete. Please try again.")
+        return _back_to_sheet(request, offering)
+
+    preview = selectors.publish_preview(assessment)
+    return render(request, "grading/publish_modal.html", {
+        "offering": offering,
+        "preview": preview,
+        "form": PublishForm(initial={"expected_changes": preview.changes}),
+    })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+@require_offering_access(edit=True)
+def unpublish(request, *, offering, perms_for, assessment_id, **_):
+    if not perms_for.can_publish:
+        raise Http404
+    assessment = get_object_or_404(Assessment, pk=assessment_id, offering=offering)
+    form = UnpublishForm(request.POST or None)
+
+    if request.method == "POST" and form.is_valid():
+        try:
+            hidden = services.unpublish_assessment(request.user, assessment,
+                                                   reason=form.cleaned_data["reason"])
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.warning(request, f"{assessment.name} unpublished. "
+                                      f"{hidden} grades are hidden from students again.")
+            return _back_to_sheet(request, offering)
+
+    return render(request, "grading/unpublish_modal.html", {
+        "offering": offering, "assessment": assessment, "form": form,
+    })
