@@ -28,7 +28,7 @@ x = range(len(sprints))
 w = 0.36
 gap = 0.02  # surface gap between the paired bars
 bp = ax.bar([i - w / 2 - gap for i in x], planned, w, color=ORANGE, label="Planned (sprint plan)", zorder=3)
-bc = ax.bar([i + w / 2 + gap for i in x], completed, w, color=BLUE, label="Completed (met Definition of Done)", zorder=3)
+bc = ax.bar([i + w / 2 + gap for i in x], completed, w, color=BLUE, label="Completed (merged with tests)", zorder=3)
 
 for bars in (bp, bc):
     for b in bars:
