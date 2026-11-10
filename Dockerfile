@@ -27,5 +27,7 @@ RUN SECRET_KEY=build DATABASE_URL=sqlite:////tmp/build.db REDIS_URL=redis://loca
 RUN useradd --create-home app && chown -R app /app
 USER app
 
-# Railway sets PORT; migrations run as the pre-deploy command (railway.toml)
-CMD ["sh", "-c", "exec gunicorn config.wsgi --bind 0.0.0.0:${PORT:-8000} --workers 2 --access-logfile -"]
+# Migrate on start: one replica, and it works the same on Railway, a VPS or locally.
+# (Railway ignores railway.toml pre-deploy commands on services created after its
+# config-as-code deprecation.) Railway sets PORT.
+CMD ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi --bind 0.0.0.0:${PORT:-8000} --workers 2 --access-logfile -"]
