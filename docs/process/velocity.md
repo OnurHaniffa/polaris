@@ -26,4 +26,4 @@ pull request as its code, so velocity shows up in the sprint where the work happ
 
 ![Velocity chart](velocity.png)
 
-Regenerate the chart: `uv run --no-project --with matplotlib python scripts/velocity_chart.py docs/process/velocity.png`
+Regenerate the chart with the other figures: `./scripts/figures.sh`
