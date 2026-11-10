@@ -1,0 +1,21 @@
+erDiagram
+    USER ||--o{ PROGRAM_MEMBERSHIP : has
+    PROGRAM ||--o{ PROGRAM_MEMBERSHIP : has
+    PROGRAM ||--o{ PROGRAM_OUTCOME_SET : versions
+    PROGRAM_OUTCOME_SET ||--|{ PROGRAM_OUTCOME : contains
+    PROGRAM ||--o{ COURSE : catalogs
+    COURSE ||--o{ COURSE_OFFERING : "runs as"
+    TERM ||--o{ COURSE_OFFERING : schedules
+    USER }o--o{ COURSE_OFFERING : teaches
+    COURSE_OFFERING ||--o{ ENROLLMENT : has
+    USER ||--o{ ENROLLMENT : "enrolls in"
+    COURSE_OFFERING ||--o{ LEARNING_OUTCOME : defines
+    COURSE_OFFERING ||--o{ ASSESSMENT : defines
+    ASSESSMENT ||--o{ ASSESSMENT_LO_WEIGHT : "feeds (%)"
+    LEARNING_OUTCOME ||--o{ ASSESSMENT_LO_WEIGHT : "fed by"
+    LEARNING_OUTCOME ||--o{ LO_PO_WEIGHT : "feeds (1-5)"
+    PROGRAM_OUTCOME ||--o{ LO_PO_WEIGHT : "fed by"
+    ASSESSMENT ||--o{ GRADE : has
+    ENROLLMENT ||--o{ GRADE : has
+    COURSE_OFFERING ||--o{ INGESTION_JOB : has
+    USER ||--o{ AUDIT_EVENT : performs

@@ -1,0 +1,25 @@
+flowchart LR
+    subgraph Client
+        B["Browser<br/>Django templates + HTMX + Chart.js"]
+    end
+    subgraph Railway["Railway (managed hosting)"]
+        E["Railway edge<br/>HTTPS, custom domain"]
+        W["web<br/>gunicorn + Django 6.1<br/>WhiteNoise static files"]
+        P[("PostgreSQL 18")]
+        R[("Redis 8.2<br/>cache + job broker")]
+        K["worker: Celery<br/>(planned, Sprint 5)"]:::planned
+    end
+    subgraph External["3rd-party services"]
+        A["Claude API<br/>syllabus extraction<br/>(planned, Sprint 6)"]:::planned
+        M["SMTP provider<br/>email notifications<br/>(planned)"]:::planned
+        G["GitHub<br/>repo + Actions CI"]
+    end
+    B -- HTTPS --> E --> W
+    W --> P
+    W --> R
+    R -. deliver job .-> K
+    K -.-> P
+    K -. syllabus text .-> A
+    W -. password reset, invites .-> M
+    G -- deploy --> W
+    classDef planned stroke-dasharray: 6 4,fill:#f4f4f4,color:#555
