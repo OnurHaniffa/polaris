@@ -1,6 +1,6 @@
 digraph model_graph {
   // Dotfile by Django-Extensions graph_models
-  // Created: 2026-11-10 16:41
+  // Created: 2026-11-10 17:05
   // Cli Options: accounts catalog outcomes grading core ingestion reports --group-models --arrow-shape normal --exclude-models AbstractUser,AbstractBaseUser,PermissionsMixin --dot -o docs/diagrams/classes-generated.dot
 
   fontname = "Roboto"

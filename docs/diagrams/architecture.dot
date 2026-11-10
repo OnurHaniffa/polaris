@@ -1,0 +1,43 @@
+// System architecture (CSE 321 report §2). Rendered by scripts/diagrams.sh.
+// Four columns: clients | web app | data stores and worker | third-party services.
+// Dashed = planned, not built yet.
+digraph architecture {
+    rankdir=LR;
+    newrank=true;
+    nodesep=0.18;
+    ranksep=0.55;
+    pad=0.08;
+    fontname="Helvetica";
+    node [shape=box, style="rounded,filled", fillcolor="#E9EFF7", color="#1F5FA8", penwidth=1.2,
+          fontname="Helvetica", fontsize=14, margin="0.10,0.05"];
+    edge [color="#3A4250", fontname="Helvetica", fontsize=12, arrowsize=0.7];
+
+    browser [label="Browser\nDjango templates\n+ HTMX + Chart.js"];
+    github [label="GitHub\nrepo + Actions CI"];
+
+    subgraph cluster_railway {
+        label="Railway (managed hosting)"; labeljust=l; fontsize=12; style="rounded"; color="#8A93A3";
+        web [label="web\ngunicorn\n+ Django 6.1", fillcolor="#D6E3F3"];
+        pg [shape=cylinder, label="PostgreSQL 18\nsystem of record"];
+        redis [shape=cylinder, label="Redis 8.2\ncache + job broker"];
+        worker [label="Celery worker\n(planned, Sprint 5)", style="rounded,dashed,filled", fillcolor="#F4F4F4", fontcolor="#555555"];
+    }
+
+    subgraph cluster_ext {
+        label="3rd-party services"; labeljust=l; fontsize=12; style="rounded"; color="#8A93A3";
+        claude [label="Claude API\nsyllabus extraction\n(planned, Sprint 6)", style="rounded,dashed,filled", fillcolor="#F4F4F4", fontcolor="#555555"];
+        smtp [label="SMTP provider\nemail notifications\n(planned)", style="rounded,dashed,filled", fillcolor="#F4F4F4", fontcolor="#555555"];
+    }
+
+    { rank=same; browser; github; }
+    { rank=same; pg; redis; worker; }
+    { rank=same; claude; smtp; }
+
+    browser -> web [label="HTTPS via\nRailway edge"];
+    github -> web [label="deploy"];
+    web -> pg;
+    web -> redis;
+    redis -> worker [style=dashed, label="jobs"];
+    worker -> claude [style=dashed, label="syllabus text"];
+    web -> smtp [style=dashed, label="password reset, invites"];
+}
