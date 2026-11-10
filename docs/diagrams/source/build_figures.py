@@ -24,7 +24,6 @@ OUT.mkdir(parents=True, exist_ok=True)
 NAVY = RGBColor(0x10, 0x1E, 0x31)
 BODY = RGBColor(0x2A, 0x36, 0x4A)
 MUTED = RGBColor(0x85, 0x93, 0xA8)
-ACCENT = NAVY  # marks the key element; navy, no yellow
 PANEL = RGBColor(0xEE, 0xF1, 0xF5)
 RULE = RGBColor(0xAE, 0xBA, 0xCA)
 LINE = RGBColor(0x5B, 0x6B, 0x82)
@@ -157,8 +156,6 @@ def chain():
     for c, r, name, val in nodes.values():
         x, y = cols[c], rows[r]
         rect(s, x, y, nw, nh, PANEL)
-        if c == 2:
-            rect(s, x, y, 0.06, nh, ACCENT)
         text(s, name, x + 0.18, y + 0.08, nw - 0.3, 0.2, size=8.5, color=MUTED)
         text(s, val, x + 0.18, y + 0.24, nw - 0.3, 0.34, size=20, color=NAVY, font=LABEL)
 
@@ -202,7 +199,7 @@ def velocity():
     bw, gap = 0.44, 0.06
     avg = sum(done) / 4
     ya = base - avg * scale
-    seg(s, left, ya, right, ya, color=ACCENT, weight=1.75, dash=True)
+    seg(s, left, ya, right, ya, color=NAVY, weight=1.75, dash=True)
     text(s, "average 22", left + 0.03, ya - 0.2, 1.0, 0.18, size=8.5, color=NAVY, font=LABEL, caps=True, track=1.0)
     for i in range(4):
         cx = left + gw * i + gw / 2
@@ -237,13 +234,11 @@ def velocity():
 
 
 # ------------------------------------------------------------------ architecture
-def node(s, x, y, w, h, title, sub, planned=False, key=False):
+def node(s, x, y, w, h, title, sub, planned=False):
     if planned:
         rect(s, x, y, w, h, WHITE, MUTED, dash=True)
     else:
         rect(s, x, y, w, h, PANEL)
-    if key:
-        rect(s, x, y, 0.055, h, ACCENT)
     text(s, title, x + 0.14, y + 0.08, w - 0.2, 0.2, size=9, bold=True, color=MUTED if planned else NAVY)
     text(s, sub, x + 0.14, y + 0.28, w - 0.2, h - 0.3, size=8, color=MUTED if planned else BODY, line_spacing=1.05)
 
@@ -266,7 +261,7 @@ def architecture():
     node(s, ca, r2, bw, bh, "GitHub", "code, CI, deploys")
     node(s, ca, r3, bw, bh, "Email (SMTP)", "password resets", planned=True)
     # the app spans the first two rows so both inputs arrive straight
-    node(s, cb, r1, bw, r2 + bh - r1, "Django app", "Django 6.1\non gunicorn", key=True)
+    node(s, cb, r1, bw, r2 + bh - r1, "Django app", "Django 6.1\non gunicorn")
     node(s, cc, r1, bw, bh, "PostgreSQL 18", "system of record")
     node(s, cc, r2, bw, bh, "Redis 8.2", "cache, job queue")
     node(s, cc, r3, bw, bh, "Celery worker", "background jobs", planned=True)
@@ -311,14 +306,11 @@ def classes():
         "Assessment": (2, 4, ["name", "kind", "max_score", "published_at"]),
         "AssessmentLOWeight": (3, 4, ["weight: 1 to 100%"]),
     }
-    weights = {"LOPOWeight", "AssessmentLOWeight"}
     for name, (c, r, attrs) in spec.items():
         x, y, h = cx[c], ry[r], rh[r]
         rect(s, x, y, cw, h, WHITE, RULE)
         rect(s, x, y, cw, 0.27, PANEL, RULE)
-        if name in weights:
-            rect(s, x, y, 0.06, h, ACCENT)
-        pad = 0.1 if name in weights else 0.04
+        pad = 0.04
         text(
             s,
             name,

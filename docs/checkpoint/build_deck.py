@@ -395,7 +395,7 @@ notes(
     """
 About 75 seconds. Underneath it all are fifteen classes. A program has versioned sets of its eleven program
 outcomes. A course runs as an offering in a term, and the offering owns its learning outcomes, assessments
-and enrollments. The two classes with a dark edge carry every weight in the scoring chain you saw on the first
+and enrollments. AssessmentLOWeight and LOPOWeight carry every weight in the scoring chain you saw on the first
 slide. A grade joins one assessment and one enrollment and keeps a draft and a published score, and every
 change is recorded in the audit log. Next, in Sprint 6, an instructor will upload a syllabus and the Claude API
 will draft the course setup for them to review. Then bulk gradebook upload and PDF reports. Thank you.

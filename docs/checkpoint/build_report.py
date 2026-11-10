@@ -322,7 +322,7 @@ figure(
     "classes",
     13.6,
     "Figure 4. The 15 core classes with key attributes and multiplicities. A filled diamond means "
-    "the part cannot exist without its owner; the two classes with a dark edge carry the weights.",
+    "the part cannot exist without its owner.",
 )
 doc.save(OUT)
 print("wrote", OUT)
