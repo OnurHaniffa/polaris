@@ -1,6 +1,6 @@
 """Mid-semester report: CSE 311 sections 1-2 and CSE 321 sections 1-2, three printed pages.
 
-Same visual system as the checkpoint deck (TU Berlin style): navy headings, an amber section number,
+Same visual system as the checkpoint deck (TU Berlin style): navy headings, a grey section number,
 grey small-caps labels, one note bar per course, Nunito Sans for text and Barlow for labels (both on
 Google Docs). Figures come from docs/diagrams/source/build_figures.py.
 
@@ -27,8 +27,7 @@ FIG = {
     "rule": Path(sys.argv[2]) if len(sys.argv) > 2 else None,
 }
 NAVY, BODY, MUTED = RGBColor(0x10, 0x1E, 0x31), RGBColor(0x2A, 0x36, 0x4A), RGBColor(0x85, 0x93, 0xA8)
-AMBER_HEX, PANEL_HEX, RULE_HEX = "F9A243", "EEF1F5", "AEBACA"
-AMBER = RGBColor(0xF9, 0xA2, 0x43)
+PANEL_HEX, RULE_HEX = "EEF1F5", "AEBACA"
 SANS, LABEL = "Nunito Sans", "Barlow"
 SIZE = 10.5
 
@@ -86,7 +85,7 @@ def body(*parts, after=6):
 def kicker(num, label, before=0, new_page=False):
     p = para(after=1, before=before, keep=True)
     p.paragraph_format.page_break_before = new_page
-    run(p, num, 10, AMBER, font=LABEL, bold=True, track=1.0)
+    run(p, num, 10, MUTED, font=LABEL, bold=True, track=1.0)
     run(p, "    " + label, 10, MUTED, font=LABEL, caps=True, track=1.6)
 
 
@@ -109,15 +108,9 @@ def shade(el, fill):
 
 
 def note(t, before=4, after=8):
-    """The deck's note bar: a shaded paragraph with an amber edge."""
+    """The deck's note bar: a shaded paragraph."""
     p = para(after=after, before=before, line=1.25)
     ppr = p._p.get_or_add_pPr()
-    bdr = OxmlElement("w:pBdr")
-    left = OxmlElement("w:left")
-    for k, v in {"w:val": "single", "w:sz": "36", "w:space": "8", "w:color": AMBER_HEX}.items():
-        left.set(qn(k), v)
-    bdr.append(left)
-    ppr.append(bdr)
     shade(ppr, PANEL_HEX)
     p.paragraph_format.left_indent = Cm(0.35)
     run(p, t, 10, BODY)
@@ -183,7 +176,7 @@ def card_rows(headings, data, widths_cm):
         for j, val in enumerate(row):
             c = t.cell(i, j)
             c.width = Cm(widths_cm[j])
-            cell_style(c, PANEL_HEX if on else None, AMBER_HEX if (on and j == 0) else None)
+            cell_style(c, PANEL_HEX if on else None, None)
             c.text = ""
             p = c.paragraphs[0]
             p.paragraph_format.space_after = Pt(0)
@@ -329,7 +322,7 @@ figure(
     "classes",
     13.6,
     "Figure 4. The 15 core classes with key attributes and multiplicities. A filled diamond means "
-    "the part cannot exist without its owner; the classes marked in amber carry the weights.",
+    "the part cannot exist without its owner; the two classes with a dark edge carry the weights.",
 )
 doc.save(OUT)
 print("wrote", OUT)

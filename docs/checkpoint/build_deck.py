@@ -31,7 +31,6 @@ OUT = ROOT / "docs/checkpoint/POlaris_checkpoint.pptx"
 NAVY = RGBColor(0x10, 0x1E, 0x31)
 BODY = RGBColor(0x2A, 0x36, 0x4A)
 MUTED = RGBColor(0x85, 0x93, 0xA8)
-AMBER = RGBColor(0xF9, 0xA2, 0x43)
 PANEL = RGBColor(0xEE, 0xF1, 0xF5)
 RULE = RGBColor(0xAE, 0xBA, 0xCA)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
@@ -126,7 +125,7 @@ def header(s, kicker, title):
     tf.word_wrap = True
     tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
     p = tf.paragraphs[0]
-    _run(p, f"{_N[0]:02d}", 11, AMBER, font=LABEL, track=1.0)
+    _run(p, f"{_N[0]:02d}", 11, MUTED, font=LABEL, track=1.0)
     _run(p, "    " + kicker, 11, MUTED, font=LABEL, caps=True, track=1.6)
     text(s, title, MX, 0.72, CW, 0.8, size=27, color=NAVY, bold=True)
     footer(s)
@@ -159,8 +158,6 @@ def rows(s, headings, data, x, y, widths, rowh=0.86, size=12.5):
     for i, row in enumerate(data):
         on = i % 2 == 0
         rect(s, x, y, total, rowh, PANEL if on else WHITE, RULE)
-        if on:
-            rect(s, x, y, 0.055, rowh, AMBER)
         cx = x
         for j, cell in enumerate(row):
             text(
@@ -183,14 +180,12 @@ def rows(s, headings, data, x, y, widths, rowh=0.86, size=12.5):
 
 def stat(s, big, small, x, y, w, color=NAVY, h=1.35):
     rect(s, x, y, w, h, PANEL)
-    rect(s, x, y, 0.055, h, AMBER)
     text(s, big, x + 0.3, y + 0.16, w - 0.5, 0.6, size=30, color=color, bold=True)
     text(s, small, x + 0.3, y + 0.78, w - 0.5, h - 0.86, size=10.5, color=MUTED, line_spacing=1.18)
 
 
 def note(s, t, y, h=0.95, size=13, x=MX, w=CW):
     rect(s, x, y, w, h, PANEL)
-    rect(s, x, y, 0.055, h, AMBER)
     text(s, t, x + 0.32, y, w - 0.6, h, size=size, color=BODY, anchor=MSO_ANCHOR.MIDDLE, line_spacing=1.3)
 
 
@@ -400,7 +395,7 @@ notes(
     """
 About 75 seconds. Underneath it all are fifteen classes. A program has versioned sets of its eleven program
 outcomes. A course runs as an offering in a term, and the offering owns its learning outcomes, assessments
-and enrollments. The two classes marked in amber carry every weight in the scoring chain you saw on the first
+and enrollments. The two classes with a dark edge carry every weight in the scoring chain you saw on the first
 slide. A grade joins one assessment and one enrollment and keeps a draft and a published score, and every
 change is recorded in the audit log. Next, in Sprint 6, an instructor will upload a syllabus and the Claude API
 will draft the course setup for them to review. Then bulk gradebook upload and PDF reports. Thank you.
