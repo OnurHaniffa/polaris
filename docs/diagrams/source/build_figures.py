@@ -253,35 +253,37 @@ def tag(s, t, x, y, w=0.9, align=PP_ALIGN.LEFT):
 
 
 def architecture():
-    prs, s = canvas(6.7, 3.0)
-    rect(s, 1.72, 0.1, 3.23, 2.85, None, RULE, radius=0.03)
-    tag(s, "Railway", 1.84, 0.17, 1.2)
-    node(s, 0.05, 0.4, 1.1, 0.5, "Browser", "pages + HTMX")
-    node(s, 0.05, 1.05, 1.1, 0.5, "GitHub", "code + CI")
-    node(s, 0.05, 2.3, 1.1, 0.5, "Email (SMTP)", "planned", planned=True)
-    node(s, 1.92, 0.4, 1.2, 1.15, "Django app", "Django 6.1 on\ngunicorn", key=True)
-    node(s, 3.48, 0.4, 1.32, 0.5, "PostgreSQL 18", "system of record")
-    node(s, 3.48, 1.05, 1.32, 0.5, "Redis 8.2", "cache, job queue")
-    node(s, 3.48, 2.3, 1.32, 0.5, "Celery worker", "planned, Sprint 5", planned=True)
-    node(s, 5.5, 2.3, 1.15, 0.5, "Claude API", "planned, Sprint 6", planned=True)
-    rect(s, 5.5, 0.47, 0.22, 0.14, PANEL)
-    text(s, "running today", 5.8, 0.44, 0.9, 0.2, size=8, color=BODY)
-    rect(s, 5.5, 0.75, 0.22, 0.14, WHITE, MUTED, dash=True)
-    text(s, "planned", 5.8, 0.72, 0.9, 0.2, size=8, color=BODY)
-    seg(s, 1.15, 0.65, 1.92, 0.65, tail="triangle")
-    tag(s, "HTTPS", 1.2, 0.47, 0.48)
-    seg(s, 1.15, 1.3, 1.92, 1.3, tail="triangle")
-    tag(s, "deploy", 1.2, 1.12, 0.5)
-    seg(s, 3.12, 0.975, 3.3, 0.975)
-    seg(s, 3.3, 0.65, 3.3, 1.3)
-    seg(s, 3.3, 0.65, 3.48, 0.65, tail="triangle")
-    seg(s, 3.3, 1.3, 3.48, 1.3, tail="triangle")
-    path(s, [(2.3, 1.55), (2.3, 2.55), (1.15, 2.55)], color=MUTED, dash=True)
-    tag(s, "reset emails", 2.37, 1.92, 1.0)
-    seg(s, 4.14, 1.55, 4.14, 2.3, color=MUTED, dash=True, tail="triangle")
-    tag(s, "jobs", 4.21, 1.85, 0.5)
-    seg(s, 4.8, 2.55, 5.5, 2.55, color=MUTED, dash=True, tail="triangle")
-    tag(s, "syllabi", 5.0, 2.37, 0.48)
+    # Strict grid: four equal columns, three rows, no labels on arrows. Each box's subtitle says
+    # what flows through it; solid = running today, dashed = planned.
+    prs, s = canvas(6.7, 2.75)
+    bw, bh = 1.15, 0.5
+    ca, cb, cc, cd = 0.05, 2.05, 3.55, 5.5  # column left edges
+    r1, r2, r3 = 0.42, 1.12, 2.02  # row top edges
+    mid = bh / 2
+    rect(s, 1.65, 0.08, 3.35, 2.59, None, RULE, radius=0.03)
+    tag(s, "Railway", 1.77, 0.14, 1.2)
+    node(s, ca, r1, bw, bh, "Browser", "pages over HTTPS")
+    node(s, ca, r2, bw, bh, "GitHub", "code, CI, deploys")
+    node(s, ca, r3, bw, bh, "Email (SMTP)", "password resets", planned=True)
+    # the app spans the first two rows so both inputs arrive straight
+    node(s, cb, r1, bw, r2 + bh - r1, "Django app", "Django 6.1\non gunicorn", key=True)
+    node(s, cc, r1, bw, bh, "PostgreSQL 18", "system of record")
+    node(s, cc, r2, bw, bh, "Redis 8.2", "cache, job queue")
+    node(s, cc, r3, bw, bh, "Celery worker", "background jobs", planned=True)
+    node(s, cd, r3, bw, bh, "Claude API", "reads syllabi", planned=True)
+    # key
+    rect(s, cd, r1 + 0.08, 0.22, 0.14, PANEL)
+    text(s, "running today", cd + 0.3, r1 + 0.05, 0.9, 0.2, size=8, color=BODY)
+    rect(s, cd, r1 + 0.36, 0.22, 0.14, WHITE, MUTED, dash=True)
+    text(s, "planned", cd + 0.3, r1 + 0.33, 0.9, 0.2, size=8, color=BODY)
+    # flows: every one straight or a single right angle
+    seg(s, ca + bw, r1 + mid, cb, r1 + mid, tail="triangle")
+    seg(s, ca + bw, r2 + mid, cb, r2 + mid, tail="triangle")
+    seg(s, cb + bw, r1 + mid, cc, r1 + mid, tail="triangle")
+    seg(s, cb + bw, r2 + mid, cc, r2 + mid, tail="triangle")
+    seg(s, cc + bw / 2, r2 + bh, cc + bw / 2, r3, color=MUTED, dash=True, tail="triangle")
+    seg(s, cc + bw, r3 + mid, cd, r3 + mid, color=MUTED, dash=True, tail="triangle")
+    path(s, [(cb + bw / 2, r2 + bh), (cb + bw / 2, r3 + mid), (ca + bw, r3 + mid)], color=MUTED, dash=True)
     save(prs, "architecture")
 
 
