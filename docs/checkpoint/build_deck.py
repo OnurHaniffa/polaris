@@ -8,6 +8,8 @@ by docs/diagrams/source/build_figures.py with the original fonts.
 Run from the repo root:  uv run --no-project --with python-pptx --with pillow python docs/checkpoint/build_deck.py
 """
 
+import json
+import sys
 from pathlib import Path
 
 from PIL import Image
@@ -192,13 +194,20 @@ def note(s, t, y, h=0.95, size=13, x=MX, w=CW):
     text(s, t, x + 0.32, y, w - 0.6, h, size=size, color=BODY, anchor=MSO_ANCHOR.MIDDLE, line_spacing=1.3)
 
 
+NO_IMAGES = "--no-images" in sys.argv  # for the Google Slides upload; figures go in through the Slides API
+PLACEMENTS = []
+
+
 def fig(s, key, x, y, w, h):
     iw, ih = Image.open(FIG[key]).size
     ar = iw / ih
     ww, hh = w, w / ar
     if hh > h:
         hh, ww = h, h * ar
-    s.shapes.add_picture(str(FIG[key]), Inches(x + (w - ww) / 2), Inches(y + (h - hh) / 2), Inches(ww), Inches(hh))
+    box = (x + (w - ww) / 2, y + (h - hh) / 2, ww, hh)
+    PLACEMENTS.append({"slide": _N[0], "figure": key, "x": box[0], "y": box[1], "w": box[2], "h": box[3]})
+    if not NO_IMAGES:
+        s.shapes.add_picture(str(FIG[key]), *(Inches(v) for v in box))
 
 
 # ------------------------------------------------------------------ 1  the idea
@@ -398,5 +407,7 @@ will draft the course setup for them to review. Then bulk gradebook upload and P
 """,
 )
 
-prs.save(OUT)
-print(f"wrote {OUT}  ({_N[0]} slides)")
+out = OUT.with_name(OUT.stem + "_noimages.pptx") if NO_IMAGES else OUT
+prs.save(out)
+OUT.with_name("figure_placements.json").write_text(json.dumps(PLACEMENTS, indent=1))
+print(f"wrote {out}  ({_N[0]} slides)")
