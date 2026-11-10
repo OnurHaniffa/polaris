@@ -4,8 +4,10 @@ Velocity = points of the stories that met the Definition of Done in that sprint 
 stories count zero and carry over with their full estimate.
 
 **Counting rule for Sprints 0–3.** A story counts in the sprint in which it was merged to `develop` with
-its tests and lint green. The DoD item "working on staging" is waived for these sprints because there
-was no hosted environment until 10 Nov (production on Railway). Dates come from the merge commits.
+its tests and lint green. Two DoD items are not counted for these sprints: "working on staging", because
+there was no hosted environment until 10 Nov (production on Railway), and "reviewed by a teammate",
+because several stories were pushed straight to `develop` without a pull request. Dates come from the
+merge commits.
 
 | Sprint | Dates | Planned | Completed | Carried over | What was completed |
 |---|---|---|---|---|---|
