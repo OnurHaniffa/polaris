@@ -178,9 +178,9 @@ def chain():
     edge(gap0, r0 + out_b, gap1, r1 + out_a, "40%")
     edge(gap0, r1 + out_a, gap1, r0 + out_b, "40%")
     edge(gap0, r1 + out_b, gap1, r1 + out_b, "100%")
-    edge(gap2, r0 + 0.31, gap3, r0 + 0.31, "1.0")
-    edge(gap2, r1 + out_a, gap3, r0 + out_b, "0.5")
-    edge(gap2, r1 + out_b, gap3, r1 + out_b, "1.0")
+    edge(gap2, r0 + 0.31, gap3, r0 + 0.31, "4")
+    edge(gap2, r1 + out_a, gap3, r0 + out_b, "2")
+    edge(gap2, r1 + out_b, gap3, r1 + out_b, "5")
     save(prs, "chain")
 
 
