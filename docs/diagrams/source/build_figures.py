@@ -258,7 +258,7 @@ def architecture():
     rect(s, 1.65, 0.08, 3.35, 2.59, None, RULE, radius=0.03)
     tag(s, "Railway", 1.77, 0.14, 1.2)
     node(s, ca, r1, bw, bh, "Browser", "pages over HTTPS")
-    node(s, ca, r2, bw, bh, "GitHub", "code, CI, deploys")
+    node(s, ca, r2, bw, bh, "GitHub", "code and CI")
     node(s, ca, r3, bw, bh, "Email (SMTP)", "password resets", planned=True)
     # the app spans the first two rows so both inputs arrive straight
     node(s, cb, r1, bw, r2 + bh - r1, "Django app", "Django 6.1\non gunicorn")
